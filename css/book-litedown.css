@@ -5,6 +5,12 @@
   display: none;
 }
 
+.pagesjs {
+  #tab\:assets tr > :nth-child(2) {
+    display: none;
+  }
+}
+
 .epigraph {
   position: relative;
   padding: 5px;
@@ -134,6 +140,12 @@ pre:has(code[data-file]) {
   }
   &::before {
     border-bottom: none;
+  }
+}
+
+.no-ref-label {
+  .cross-ref-sec:before {
+    content: "";
   }
 }
 
