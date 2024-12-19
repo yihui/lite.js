@@ -1,7 +1,7 @@
 // add a button to elements to copy their content: https://yihui.org/en/2023/09/copy-button/
 (d => {
   const cfg = d.currentScript?.dataset;
-  d.querySelectorAll(cfg?.selector || 'pre>code').forEach(el => {
+  d.querySelectorAll(cfg?.selector || 'pre>code, .copy-this').forEach(el => {
     const btn = d.createElement('span'), cls = btn.classList,
       c1 = 'copy-success', c2 = 'copy-fail', pre = el.parentNode,
       is_code = el.tagName === 'CODE' && pre?.tagName === 'PRE';

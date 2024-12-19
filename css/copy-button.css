@@ -8,7 +8,7 @@
   border: 1px solid;
   box-shadow: -3px 3px #999;
 }
-:hover > .copy-button {
+:is(:focus, :hover) > .copy-button {
   display: inline-block;
 }
 .copy-success {
