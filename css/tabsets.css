@@ -1,3 +1,6 @@
+.tabset:is(.tabset *) {
+  margin: .5em auto;
+}
 .tab-link, .tab-pane {
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 5px 5px 0 0;
