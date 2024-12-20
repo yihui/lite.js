@@ -24,6 +24,7 @@
     const p = is_code ? pre : el;
     // add the button only if it has not been added
     p.querySelector('.copy-button') || p.append(btn);
+    p.hasAttribute('tabIndex') || (p.tabIndex = '0');
     getComputedStyle(p).position === 'static' && (p.style.position = 'relative');
   });
 })(document);
