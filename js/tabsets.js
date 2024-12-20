@@ -3,11 +3,12 @@
 document.querySelectorAll('.tabset').forEach(h => {
   const links = [...h.querySelectorAll(':scope > .tab-link')],
         panes = [...h.querySelectorAll(':scope > .tab-pane')];
+  let init = 0;
   function activate(i) {
     function a(x, i) {
       x.forEach((el, k) => el.classList[k === i ? 'add' : 'remove']('active'));
     }
-    a(links, i); a(panes, i);
+    init = i; a(links, i); a(panes, i);
   }
   function newEl(tag, cls) {
     const el = document.createElement(tag);
@@ -67,17 +68,29 @@ document.querySelectorAll('.tabset').forEach(h => {
     }
     el = el.nextSibling;
   }
+  const N = links.length;
+  if (!N) return;
+
   // if the initial tabset container is empty, move links and panes into it
   if (isEmpty(h)) {
     links.forEach(l => h.append(l));
     panes.forEach(p => h.append(p));
   }
   // activate one tab initially if none is active
-  let init = 0;
   links.forEach((l, i) => {
     i > 0 && links[i - 1].after(l);  // move tab links together
     l.onclick = () => activate(i);  // add the click event
     if (l.classList.contains('active')) init = i;
   });
+
+  const ts = links[0].parentNode;
+  ts.hasAttribute('tabIndex') || (ts.tabIndex = '0');
+  ts.addEventListener('keyup', e => {
+    const dir = ['ArrowLeft', 'ArrowRight'].indexOf(e.key);
+    if (dir < 0) return;
+    const i = init + (dir ? 1 : -1);
+    activate(i < 0 ? N - 1 : (i > N - 1 ? 0 : i));
+  });
+
   activate(init);
 });
