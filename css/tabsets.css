@@ -1,32 +1,22 @@
-.tabset:is(.tabset *) {
-  margin: .5em auto;
+.tabset {
+  &:has(.tab-link) { margin: 1em auto; }
+  &:is(.tabset *) { margin: .5em auto; }
 }
 .tab-link, .tab-pane {
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 5px 5px 0 0;
-}
-.tab-link + .tab-pane.active {
-  border-radius: 0 5px 0 0;
-}
-.tab-link.active, .tab-pane.active {
-  border-color: rgba(0, 0, 0, .5);
-}
-.tab-link:not(.active):hover {
-  background: rgba(0, 0, 0, .05);
-}
-.tab-pane {
-  display: none;
   padding: .2em .5em;
-}
-.tab-pane.active {
-  display: block;
+  &.active { border-color: rgba(0, 0, 0, .5); }
 }
 .tab-link {
   display: inline-block;
   margin: 0 .5em -1px 0;
-  padding: .2em .5em;
   cursor: pointer;
+  &.active { border-bottom-color: white; }
+  & + .tab-pane.active { border-radius: 0 5px 0 0; }
+  &:not(.active):hover { background: rgba(0, 0, 0, .05); }
 }
-.tab-link.active {
-  border-bottom-color: white;
+.tab-pane {
+  display: none;
+  &.active { display: block; }
 }
