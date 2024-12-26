@@ -13,14 +13,16 @@
   const observer = new IntersectionObserver(els => els.forEach(el => {
     const id = el.target.id, i = stack.indexOf(id);
     el.isIntersecting ? stack.push(id) : (i > -1 && stack.splice(i, 1));
-    let id_active;
+    let id_active = location.hash.replace('#', '');
     const n = stack.length;
-    if (!n) {
+    if (n) {
+      if (!stack.includes(id_active)) id_active = stack[n - 1];
+    } else {
       if (el.target.getBoundingClientRect().top < 0) return;
       // if a heading exits from bottom and no heading is in view, activate previous ID
       const k = ids.indexOf(id) - 1;
       if (k >= 0) id_active = ids[k];
-    } else id_active = stack[n - 1];
+    }
     for (const i in dict) {
       dict[i].classList.toggle('active', i === id_active);
     }
