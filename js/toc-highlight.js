@@ -1,16 +1,14 @@
 // highlight a TOC item when scrolling to a corresponding section heading
 (d => {
   // assume TOC has these possible IDs (we can also consider other selectors)
-  const toc = d.querySelector('#TableOfContents, #TOC');
+  const s = 'a[href^="#"]', toc = d.querySelector(`:is(#TableOfContents, #TOC):has(${s})`);
   if (!toc) return;
-  const links = toc.querySelectorAll('a[href^="#"]');
-  if (!links.length) return;
-  const dict = {};
+  const links = toc.querySelectorAll(s), dict = {};
   links.forEach(a => dict[a.getAttribute('href').replace('#', '')] = a);
   const ids = Object.keys(dict);
 
   // record which elements are currently in the viewport
-  const stack = [], id2 = [];
+  const stack = [];
   // create a new Intersection Observer instance
   const observer = new IntersectionObserver(els => els.forEach(el => {
     const id = el.target.id, i = stack.indexOf(id);
@@ -24,10 +22,10 @@
       if (k >= 0) id_active = ids[k];
     } else id_active = stack[n - 1];
     for (const i in dict) {
-      dict[i].classList[i === id_active ? 'add' : 'remove']('active');
+      dict[i].classList.toggle('active', i === id_active);
     }
   }));
-  
+
   // observe all section headings associated with TOC links
   d.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
     h.nodeType === 1 && dict.hasOwnProperty(h.id) && observer.observe(h);
