@@ -69,6 +69,8 @@
       const item = el.firstChild;
       if (!item) break;
       el2.append(item);
+      // usually there's no need to re-calculate size if item is not element (e.g., white space)
+      if (item.nodeName.startsWith('#')) continue;
       if (box_cur.scrollHeight > H) {
         // move item back to el if the clone el2 is not the only element on page or has more than one child
         (prev || nChild(el2) > 1) && el.insertBefore(item, el.firstChild);
