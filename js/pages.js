@@ -146,6 +146,17 @@
     });
 
     cls.add('pagesjs-filling');
+
+    // add dot leaders to TOC
+    $$('#TOC a[href^="#"]').forEach(a => {
+      const s = d.createElement('span'),  // move TOC item content into a span
+        n = a.firstElementChild;  // if first child is section number, exclude it
+      n?.classList.contains('section-number') ? n.after(s) : a.insertAdjacentElement('afterbegin', s);
+      while (s.nextSibling) s.append(s.nextSibling);
+      a.insertAdjacentHTML('beforeend', '<span class="dot-leader"></span>');
+      a.dataset.pageNumber = '000';  // placeholder for page numbers
+    });
+
     // iteratively add elements to pages
     [$('.frontmatter'), $('#TOC'), $('.abstract')].forEach(el => {
       el && (fill(el), book && box.after(newPage()));
@@ -159,16 +170,6 @@
       removeBlank(el.parentNode); removeBlank(el);
     });
     cls.remove('pagesjs-filling');
-
-    // add dot leaders to TOC
-    $$('#TOC a[href^="#"]').forEach(a => {
-      const s = d.createElement('span'),  // move TOC item content into a span
-        n = a.firstElementChild;  // if first child is section number, exclude it
-      n?.classList.contains('section-number') ? n.after(s) : a.insertAdjacentElement('afterbegin', s);
-      while (s.nextSibling) s.append(s.nextSibling);
-      a.insertAdjacentHTML('beforeend', '<span class="dot-leader"></span>');
-      a.dataset.pageNumber = '000';  // placeholder for page numbers
-    });
 
     // add page number, title, etc. to data-* attributes of page elements
     let page_title, i = 0;
