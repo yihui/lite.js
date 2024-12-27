@@ -12,14 +12,4 @@
   const s = d.createElement('script');
   s.src = 'https://cdn.jsdelivr.net/npm/@xiee/utils/js/tabsets.min.js';
   d.body.insertAdjacentElement('beforeend', s);
-  const links = [...d.querySelectorAll('.tab-link')], N = links.length;
-  d.addEventListener('keyup', e => {
-    const dir = ['ArrowLeft', 'ArrowRight'].indexOf(e.key);
-    if (dir < 0) return;
-    const a = d.querySelector('.tab-link.active');
-    let i = links.indexOf(a) + (dir ? 1 : -1);
-    if (i < 0) i = N - 1;
-    if (i > N - 1) i = 0;
-    links[i].click();
-  });
 })(document);
