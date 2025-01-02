@@ -39,12 +39,14 @@
   .pagesjs-page {
     width: var(--paper-width);
     height: var(--paper-height);
-    overflow: hidden;
     padding: var(--paper-margin-top) var(--paper-margin-right) var(--paper-margin-bottom) var(--paper-margin-left);
   	page-break-after: always;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    &:not(.page-multiple) {
+      overflow: hidden;
+    }
     img {
       max-width: 100%;
     }
