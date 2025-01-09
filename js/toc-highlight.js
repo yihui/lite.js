@@ -7,6 +7,7 @@
   links.forEach(a => dict[a.getAttribute('href').replace('#', '')] = a);
   const ids = Object.keys(dict);
 
+  let id_active;
   // status: 1 if an id is currently in the viewport, otherwise 0
   const status = Array(ids.length).fill(0);
   // create a new Intersection Observer instance
@@ -14,15 +15,13 @@
     const id = el.target.id, i = ids.indexOf(id);
     if (i < 0) return;
     status[i] = +el.isIntersecting;
-    let id_active;
     const n = status.indexOf(1);  // the first id in view
     if (n > -1) {
       id_active = ids[n];
     } else {
-      if (el.boundingClientRect.top < 0) return;
+      if (!id_active || el.boundingClientRect.top < 0) return;
       // if a heading exits from bottom and no heading is in view, activate previous ID
-      const k = ids.indexOf(id) - 1;
-      if (k >= 0) id_active = ids[k];
+      id_active = i > 0 ? ids[i - 1] : undefined;
     }
     for (const i in dict) {
       dict[i].classList.toggle('active', i === id_active);
