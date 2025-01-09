@@ -19,7 +19,7 @@
     if (n > -1) {
       id_active = ids[n];
     } else {
-      if (el.target.getBoundingClientRect().top < 0) return;
+      if (el.boundingClientRect.top < 0) return;
       // if a heading exits from bottom and no heading is in view, activate previous ID
       const k = ids.indexOf(id) - 1;
       if (k >= 0) id_active = ids[k];
