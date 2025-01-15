@@ -33,7 +33,7 @@
     min-height: unset;
     box-shadow: none;
   }
-  &:not(:has(.frontmatter)):has(.chapter-toc) #TOC:not(.chapter-toc) {
+  & > *, &:not(:has(.frontmatter)):has(.chapter-toc) #TOC:not(.chapter-toc) {
     display: none;
   }
   .pagesjs-page {
@@ -41,7 +41,9 @@
     height: var(--paper-height);
     padding: var(--paper-margin-top) var(--paper-margin-right) var(--paper-margin-bottom) var(--paper-margin-left);
     break-after: page;
-    display: flex;
+    &:not(.pagesjs-done) {
+      display: flex;
+    }
     flex-direction: column;
     justify-content: space-between;
     overflow: hidden;

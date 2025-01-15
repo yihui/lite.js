@@ -17,6 +17,11 @@
     box_cls.length && box.classList.add(...box_cls);
     return box;
   }
+  function testHeight(box, done) {
+    const ret = box.scrollHeight > H;
+    (done || ret) && box.classList.add('pagesjs-done');
+    return ret;
+  }
   function removeBlank(el) {
     if (!el) return false;
     const v = el.innerText.trim() === '';
@@ -31,12 +36,13 @@
       if (nChild(el) > 3) {
         box_body.append(...[...el.children].slice(3));
         // TODO: should we fragment this page if it's too long?
+        testHeight(box, true);
         box.after(newPage());  // create a new empty page
       }
       return;
     }
     // create a new box when too much content (exceeding original height)
-    if (box.scrollHeight > H) {
+    if (testHeight(box)) {
       const [box2, box_body2] = [box, box_body];  // store old box
       box2.after(newPage());
       // if there's more than one child in the box, move the last child to next box
@@ -71,7 +77,7 @@
       el2.append(item);
       // usually there's no need to re-calculate size if item is not element (e.g., white space)
       if (item.nodeName.startsWith('#')) continue;
-      if (box_cur.scrollHeight > H) {
+      if (testHeight(box_cur)) {
         // move item back to el if the clone el2 is not the only element on page or has more than one child
         (prev || nChild(el2) > 1) && el.insertBefore(item, el.firstChild);
         // update the start number of <ol> on next page
@@ -84,7 +90,7 @@
       const code = el.innerHTML.split('\n'), code2 = [];
       for (let i of code) {
         code2.push(i); el2.innerHTML = code2.join('\n');
-        if (box_cur.scrollHeight > H) {
+        if (testHeight(box_cur)) {
           code2.pop(); el2.innerHTML = code2.join('\n');
           break;
         }
@@ -177,6 +183,7 @@
     let page_title, i = 0;
     $$('.pagesjs-page').forEach(box => {
       if (removeBlank(box)) return;  // remove empty pages
+      box.classList.remove('pagesjs-done');
       if (book) {
         if ($('.frontmatter', box)) return;  // skip book frontmatter page
         $(ps, box) && (page_title = '');  // empty title for first page of chapter
