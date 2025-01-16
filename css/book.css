@@ -11,11 +11,11 @@ body {
 .frontmatter {
   background-image: radial-gradient(#b6cee2 1px, #fff 1px);
   background-size: 2em 2em;
-  background-color: #fff;
+  background: #fff;
   padding-bottom: 0;
   & > div {
     margin: 0 -1em;
-    background-color: #ebf6f9;
+    background: #ebf6f9;
     padding: 1em;
   }
   & .title {

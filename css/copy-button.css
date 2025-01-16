@@ -13,8 +13,8 @@
 }
 .copy-success {
   box-shadow: none;
-  background-color: #999;
-  transition: box-shadow 300ms ease-out, background-color 300ms ease-out;
+  background: #999;
+  transition: box-shadow 300ms ease-out, background 300ms ease-out;
 }
 .copy-fail {
   border-style: dotted;

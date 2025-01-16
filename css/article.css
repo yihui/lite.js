@@ -102,7 +102,7 @@ body, blockquote, .side { background: #fafafa; }
   .note-ref { cursor: pointer; }
   .note-ref:hover + .side {
     display: inline-block;
-    background-color: #f8f8f8;
+    background: #f8f8f8;
     position: absolute;
     z-index: 1;
     margin-left: 1em;
