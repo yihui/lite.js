@@ -5,7 +5,11 @@
   function $$(s, el = d) { return el ? el.querySelectorAll(s) : []; }
   function nChild(el) { return el.childElementCount; }
 
-  const tpl = d.createElement('div'), book = $$('h1').length > 1, fr_cls = 'pagesjs-fragmented';
+  const tpl = d.createElement('div'), book = $$('h1').length > 1, boxes = [],
+  fr_cls = 'pagesjs-fragmented', tb = ['top', 'bottom'].map(i => {
+      const v = getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`);
+      return +v.replace('px', '') || 0;
+    });  // top/bottom page margin
   tpl.className = 'pagesjs-page';
   tpl.innerHTML = `<div class="pagesjs-header"></div>
 <div class="pagesjs-body"></div>
@@ -15,12 +19,16 @@
     el && !$('.pagesjs-body', el) && el.insertAdjacentHTML('afterbegin', tpl.innerHTML);
     box = el || tpl.cloneNode(true); box_body = box.children[1];
     box_cls.length && box.classList.add(...box_cls);
+    boxes.push(box);  // store new pages in boxes
     return box;
   }
-  function testHeight(box, done) {
-    const ret = box.scrollHeight > H;
-    (done || ret) && box.classList.add('pagesjs-done');
-    return ret;
+  function addOffset(box) {
+    const h = box.scrollHeight;
+    if (h > H && !box.dataset.pagesOffset) {
+      const n = calcPages(box, h);
+      if (n > 1) box.dataset.pagesOffset = n;
+    }
+    box.classList.add('pagesjs-done');
   }
   function removeBlank(el) {
     if (!el) return false;
@@ -29,6 +37,7 @@
     return v;
   }
   function fill(el) {
+    const n1 = boxes.length;
     // if the element is already a page, just use it as the box
     if (el.classList.contains('pagesjs-page')) {
       box.after(newPage(el));
@@ -36,20 +45,22 @@
       if (nChild(el) > 3) {
         box_body.append(...[...el.children].slice(3));
         // TODO: should we fragment this page if it's too long?
-        testHeight(box, true);
         box.after(newPage());  // create a new empty page
       }
-      return;
+    } else {
+      // create a new box when too much content (exceeding original height)
+      if (box.scrollHeight > H) {
+        const [box2, box_body2] = [box, box_body];  // store old box
+        box2.after(newPage());
+        // if there's more than one child in the box, move the last child to next box
+        nChild(box_body2) > 1 && box_body.append(box_body2.lastChild);
+      }
+      box_body.append(el);
+      fragment(el);
     }
-    // create a new box when too much content (exceeding original height)
-    if (testHeight(box)) {
-      const [box2, box_body2] = [box, box_body];  // store old box
-      box2.after(newPage());
-      // if there's more than one child in the box, move the last child to next box
-      nChild(box_body2) > 1 && box_body.append(box_body2.lastChild);
-    }
-    box_body.append(el);
-    fragment(el);
+    const n2 = boxes.length;
+    // mark all boxes (except the last one) with class 'pagesjs-done'
+    n2 > n1 && n2 > 1 && boxes.splice(0, n2 - 1).forEach(addOffset);
   }
   // break elements that are relatively easy to break (such as <ul>)
   function fragment(el, container, parent, page) {
@@ -77,7 +88,7 @@
       el2.append(item);
       // usually there's no need to re-calculate size if item is not element (e.g., white space)
       if (item.nodeName.startsWith('#')) continue;
-      if (testHeight(box_cur)) {
+      if (box_cur.scrollHeight > H) {
         // move item back to el if the clone el2 is not the only element on page or has more than one child
         (prev || nChild(el2) > 1) && el.insertBefore(item, el.firstChild);
         // update the start number of <ol> on next page
@@ -90,7 +101,7 @@
       const code = el.innerHTML.split('\n'), code2 = [];
       for (let i of code) {
         code2.push(i); el2.innerHTML = code2.join('\n');
-        if (testHeight(box_cur)) {
+        if (box_cur.scrollHeight > H) {
           code2.pop(); el2.innerHTML = code2.join('\n');
           break;
         }
@@ -111,19 +122,14 @@
     return h && (h.dataset.shortTitle || h.innerText);
   }
   const main = shortTitle($('h1.title, .frontmatter h1, .title, h1')),  // main title
-    ps = (book ? 'h1' : 'h2') + ':not(.frontmatter *)',  // page title selector
-    tb = ['top', 'bottom'].map(i => {
-      const v = getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`);
-      return +v.replace('px', '') || 0;
-    });  // top/bottom page margin
+    ps = (book ? 'h1' : 'h2') + ':not(.frontmatter *)';  // page title selector
 
   // calculate how many new pages we need for overflowed content (this is just
   // an estimate; if not accurate, use <div class="pagesjs-page" data-pages-offset="N">
   // to provide a number manually)
-  function calcPages(box) {
+  function calcPages(box, h) {
     let n = +box.dataset.pagesOffset;
     if (n) return n;
-    const h = box.scrollHeight;
     n = Math.ceil(h/H);
     if (n <= 1) return n;
     // consider top/bottom page margin and table headers (which may be repeated on each page)
@@ -177,18 +183,18 @@
       // clean up container and self if empty
       removeBlank(el.parentNode); removeBlank(el);
     });
+    boxes.forEach(addOffset);  // mark the rest of pages as done
     cls.remove('pagesjs-filling');
 
     // add page number, title, etc. to data-* attributes of page elements
     let page_title, i = 0;
     $$('.pagesjs-page').forEach(box => {
       if (removeBlank(box)) return;  // remove empty pages
-      box.classList.remove('pagesjs-done');
       if (book) {
         if ($('.frontmatter', box)) return;  // skip book frontmatter page
         $(ps, box) && (page_title = '');  // empty title for first page of chapter
       }
-      const N = calcPages(box);
+      const N = +box.dataset.pagesOffset || 1;
       if (N > 1) box.classList.add('page-multiple');
       i += N;
       box.classList.add(`page-${i % 2 === 0 ? 'even' : 'odd'}`);
@@ -213,6 +219,9 @@
         p = $(`.pagesjs-page:has(#${id}) .pagesjs-header`);
       a.dataset.pageNumber = p ? p.dataset.pageNumber : '';
     });
+
+    // unhide all pages
+    $$('.pagesjs-done').forEach(box => box.classList.remove('pagesjs-done'));
   }
   addEventListener('beforeprint', paginate);
   // persistent pagination upon page reload (press p again to cancel it)
