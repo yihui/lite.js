@@ -30,6 +30,9 @@ body, blockquote, .side { background: #fafafa; }
   float: left;
   clear: left;
   margin-left: var(--side-margin);
+  &:not(.body > *) {
+    margin-left: calc(var(--side-margin) + 1em);
+  }
   position: sticky;
 }
 .side-right {

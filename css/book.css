@@ -23,14 +23,6 @@ body {
     margin-top: -1em;
   }
 }
-#TOC.side {
-  margin-left: calc(-200px - .8em);
-}
-@media (max-width: 1264px) {
-  #TOC.side {
-    margin-left: auto;
-  }
-}
 @media (min-width: 1264.02px) {
   body:not(.pagesjs) .chapter-toc {
     display: none;
