@@ -83,6 +83,18 @@
         }
       }
     }
+    & > .pagesjs-body > .pagesjs-fragmented {
+      &:first-child {
+        &, & .pagesjs-fragmented {
+          border-top: none;
+        }
+      }
+      &:last-child {
+        &, & .pagesjs-fragmented {
+          border-bottom: none;
+        }
+      }
+    }
     .fullwidth {
       float: none;
       max-width: none;

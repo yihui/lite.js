@@ -126,17 +126,9 @@ pre:has(code[data-file]) {
     &::before, code::before {
       content: unset;
     }
-    code {
-      border-top: none;
-    }
   }
   code, &::before {
     border: groove mintcream;
-  }
-  &.pagesjs-fragmented:last-child {
-    code {
-      border-bottom: none;
-    }
   }
   &::before {
     border-bottom: none;
