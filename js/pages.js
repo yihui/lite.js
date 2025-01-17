@@ -96,20 +96,37 @@
         break;
       }
     }
-    // split lines in <code> and try to move them into el2 line by line
+    // split lines in <code> and try to move as many lines into el2 as possible
     if (is_code) {
-      const code = el.innerHTML.split('\n'), code2 = [];
-      for (let i of code) {
-        code2.push(i); el2.innerHTML = code2.join('\n');
-        if (box_cur.scrollHeight > H) {
-          code2.pop(); el2.innerHTML = code2.join('\n');
-          break;
+      const code = el.innerHTML.split('\n');
+      // figure out how many lines can fit the box via bisection
+      let i = 0, i1 = 1, i2 = code.length;
+      const sols = [], h = el.offsetHeight / i2;  // approx height of a line
+      function fillCode(el, i1, i2) {
+        el.innerHTML = code.slice(i1, i2).join('\n');
+      }
+      while (i2 - i1 > 1) {
+        fillCode(el2, 0, i || 1);
+        const delta = H - box_cur.offsetHeight;
+        if (delta === 0) {
+          i1 = i || 1; break;
         }
+        if (delta < 0) {
+          if (i <= 0) break;
+          i2 = i;
+        } else {
+          i1 = i;
+        }
+        sols.push(i);
+        // estimate the number of (more or less) lines needed
+        const i3 = i + Math.round(delta / h);
+        // if a solution has been tried, shorten step and (in/de)crement by 1
+        i = sols.includes(i3) ? i + (delta > 0 ? 1 : -1) : i3;
       }
-      if (code2.length > 0) {
-        el.innerHTML = code.slice(code2.length).join('\n');
+      if (i > 0) {
+        fillCode(el2, 0, i1); fillCode(el, i1);
         if (removeBlank(parent)) return;  // exit if <pre> is empty
-      }
+      } else el2.innerHTML = '';
     }
     const el2_empty = removeBlank(el2);
     // if the clone is empty, remove it, otherwise keep fragmenting the remaining el
