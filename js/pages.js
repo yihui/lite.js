@@ -6,7 +6,8 @@
   function nChild(el) { return el.childElementCount; }
 
   const tpl = d.createElement('div'), book = $$('h1').length > 1, boxes = [],
-  fr_cls = 'pagesjs-fragmented', tb = ['top', 'bottom'].map(i => {
+    cd_cls = String.fromCharCode(...Array(10).fill(0).map(x => 97 + Math.random() * 26)),
+    fr_cls = 'pagesjs-fragmented', tb = ['top', 'bottom'].map(i => {
       const v = getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`);
       return +v.replace('px', '') || 0;
     });  // top/bottom page margin
@@ -76,7 +77,15 @@
     // fragment <pre>'s <code> and <div>'s single child (e.g., #TOC > ul)
     if (tag === 'PRE') {
       const code = el.firstElementChild;
-      code?.tagName == 'CODE' && /\n/.test(code.innerHTML) && fragment(code, el2, el, box_cur);
+      if (code?.tagName === 'CODE') {
+        const lines = code.innerHTML.replace(/\n$/, '').split('\n');
+        if (lines.length > 1) {
+          // add <i> to each line to measure the line heights
+          code.innerHTML = lines.concat('').map(x => `<i class="${cd_cls}"></i>${x}`).join('\n');
+          $$(`i.${cd_cls}`, code).forEach(i => i.dataset.top = i.offsetTop);
+          fragment(code, el2, el, box_cur);
+        }
+      }
     } else if (tag === 'DIV' && nChild(el) === 1) {
       fragment(el.firstElementChild, el2, el, box_cur);
     }
@@ -96,18 +105,31 @@
         break;
       }
     }
-    // split lines in <code> and try to move them into el2 line by line
+    // split lines in <code> and try to move as many lines into el2 as possible
     if (is_code) {
-      const code = el.innerHTML.split('\n'), code2 = [];
-      for (let i of code) {
-        code2.push(i); el2.innerHTML = code2.join('\n');
+      const code = el.innerHTML.split('\n'), delta = H - box_cur.scrollHeight,
+        tops = [...$$(`i.${cd_cls}`, el)].map(i => i.dataset.top);
+      //if (el.innerHTML.match('Humpty')) debugger;
+      let i = 0;
+      function fillCode() {
+        el2.innerHTML = code.slice(0, i).join('\n');
+      }
+      if (delta > 0) {
+        for (i = 0; i < tops.length; i++) {
+          if (tops[i + 1] - tops[0] > delta) break;
+        }
+        if (i > 0) fillCode();
+      }
+      // remove/add lines from el2 one by one if box is too long/short
+      const dir = box_cur.scrollHeight > H ? -1 : 1;
+      while (i > 0 && i <= code.length) {
+        i += dir; fillCode();
         if (box_cur.scrollHeight > H) {
-          code2.pop(); el2.innerHTML = code2.join('\n');
-          break;
+          i += -1; fillCode(); break;
         }
       }
-      if (code2.length > 0) {
-        el.innerHTML = code.slice(code2.length).join('\n');
+      if (i > 0) {
+        el.innerHTML = code.slice(i).join('\n');
         if (removeBlank(parent)) return;  // exit if <pre> is empty
       }
     }
@@ -184,6 +206,7 @@
       removeBlank(el.parentNode); removeBlank(el);
     });
     boxes.forEach(addOffset);  // mark the rest of pages as done
+    $$(`pre > code i.${cd_cls}`).forEach(el => el.remove());
     cls.remove('pagesjs-filling');
 
     // add page number, title, etc. to data-* attributes of page elements
