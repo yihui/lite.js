@@ -6,7 +6,7 @@
   function nChild(el) { return el.childElementCount; }
 
   const tpl = d.createElement('div'), book = $$('h1').length > 1, boxes = [],
-  fr_cls = 'pagesjs-fragmented', tb = ['top', 'bottom'].map(i => {
+    fr_cls = 'pagesjs-fragmented', tb = ['top', 'bottom'].map(i => {
       const v = getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`);
       return +v.replace('px', '') || 0;
     });  // top/bottom page margin
@@ -171,15 +171,20 @@
       a.dataset.pageNumber = '000';  // placeholder for page numbers
     });
 
-    // iteratively add elements to pages
-    [$('.frontmatter'), $('#TOC'), $('.abstract')].forEach(el => {
-      el && (fill(el), book && box.after(newPage()));
-    });
+    const els = [];
     $$('.body').forEach(el => {
+      const ch = [...el.children];
+      els.push(ch); ch.forEach(el => el.remove());
+    });
+    // iteratively add elements to pages
+    $$('.frontmatter, .abstract, #TOC:not(.chapter-toc)').forEach(el => {
+      (fill(el), book && box.after(newPage()));
+    });
+    $$('.body').forEach((el, i) => {
       // preserve book chapter classes if exist
       box_cls = ['chapter', 'appendix'].filter(i => el.classList.contains(i));
       book && (box.innerText === '' ? newPage(box) : box.after(newPage()));
-      [...el.children].map(fill);
+      els[i].forEach(fill);
       // clean up container and self if empty
       removeBlank(el.parentNode); removeBlank(el);
     });
