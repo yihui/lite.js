@@ -41,9 +41,7 @@
     height: var(--paper-height);
     padding: var(--paper-margin-top) var(--paper-margin-right) var(--paper-margin-bottom) var(--paper-margin-left);
     break-after: page;
-    &:not(.pagesjs-done) {
-      display: flex;
-    }
+    display: flex;
     flex-direction: column;
     justify-content: space-between;
     overflow: hidden;

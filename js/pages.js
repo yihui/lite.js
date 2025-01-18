@@ -5,8 +5,9 @@
   function $$(s, el = d) { return el ? el.querySelectorAll(s) : []; }
   function nChild(el) { return el.childElementCount; }
 
-  const tpl = d.createElement('div'), book = $$('h1').length > 1, boxes = [],
-    fr_cls = 'pagesjs-fragmented', tb = ['top', 'bottom'].map(i => {
+  const tpl = d.createElement('div'), book = $$('h1').length > 1,
+    fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
+    tb = ['top', 'bottom'].map(i => {
       const v = getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`);
       return +v.replace('px', '') || 0;
     });  // top/bottom page margin
@@ -14,21 +15,28 @@
   tpl.innerHTML = `<div class="pagesjs-header"></div>
 <div class="pagesjs-body"></div>
 <div class="pagesjs-footer"></div>`;
-  let box, box_body, H, box_cls = [];
+  let box, box_body, H, box_cls = [], boxes = [], box_n = 0;
   function newPage(el) {
+    const n = boxes.length;
+    // finish previous n - 1 boxes
+    if (n - box_n > 1) {
+      boxes.slice(box_n, n - 1).forEach(finish);
+      box_n = n - 1;
+    }
     el && !$('.pagesjs-body', el) && el.insertAdjacentHTML('afterbegin', tpl.innerHTML);
     box = el || tpl.cloneNode(true); box_body = box.children[1];
     box_cls.length && box.classList.add(...box_cls);
-    boxes.push(box);  // store new pages in boxes
+    boxes.includes(box) || boxes.push(box);  // store new pages in boxes
     return box;
   }
-  function addOffset(box) {
+  // compute page numbers and temporarily remove the box
+  function finish(box) {
     const h = box.scrollHeight;
     if (h > H && !box.dataset.pagesOffset) {
       const n = calcPages(box, h);
       if (n > 1) box.dataset.pagesOffset = n;
     }
-    box.classList.add('pagesjs-done');
+    box.remove();
   }
   function removeBlank(el) {
     if (!el) return false;
@@ -37,7 +45,6 @@
     return v;
   }
   function fill(el) {
-    const n1 = boxes.length;
     // if the element is already a page, just use it as the box
     if (el.classList.contains('pagesjs-page')) {
       box.after(newPage(el));
@@ -58,9 +65,6 @@
       box_body.append(el);
       fragment(el);
     }
-    const n2 = boxes.length;
-    // mark all boxes (except the last one) with class 'pagesjs-done'
-    n2 > n1 && n2 > 1 && boxes.splice(0, n2 - 1).forEach(addOffset);
   }
   // break elements that are relatively easy to break (such as <ul>)
   function fragment(el, container, parent, page) {
@@ -205,13 +209,13 @@
       // clean up container and self if empty
       removeBlank(el.parentNode); removeBlank(el);
     });
-    boxes.forEach(addOffset);  // mark the rest of pages as done
+    boxes.slice(box_n).forEach(finish);  // finish the rest of pages
     cls.remove('pagesjs-filling');
 
     // add page number, title, etc. to data-* attributes of page elements
     let page_title, i = 0;
-    $$('.pagesjs-page').forEach(box => {
-      if (removeBlank(box)) return;  // remove empty pages
+    boxes = boxes.filter(box => !removeBlank(box));  // remove empty pages
+    boxes.forEach(box => {
       if (book) {
         if ($('.frontmatter', box)) return;  // skip book frontmatter page
         $(ps, box) && (page_title = '');  // empty title for first page of chapter
@@ -235,15 +239,15 @@
       });
     });
 
+    // unhide all pages
+    d.body.prepend(...boxes);
+
     // add page numbers to TOC with data-* attributes
     $$('#TOC a[href^="#"]').forEach(a => {
       const id = CSS.escape(a.getAttribute('href').replace(/^#/, '')),
         p = $(`.pagesjs-page:has(#${id}) .pagesjs-header`);
       a.dataset.pageNumber = p ? p.dataset.pageNumber : '';
     });
-
-    // unhide all pages
-    $$('.pagesjs-done').forEach(box => box.classList.remove('pagesjs-done'));
   }
   addEventListener('beforeprint', paginate);
   // persistent pagination upon page reload (press p again to cancel it)
