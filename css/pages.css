@@ -55,7 +55,7 @@
       border: none;
       padding: 0;
       margin-left: auto;
-      &:not(.pagesjs-page:has(#TOC) ~ .pagesjs-page *)::before {
+      &:not(.chapter-toc):is(.fragment-first, :not(.pagesjs-fragmented))::before {
         content: "Contents";
         display: block;
         font-weight: bold;
@@ -82,12 +82,12 @@
       }
     }
     & > .pagesjs-body > .pagesjs-fragmented {
-      &:first-child {
+      &:not(.fragment-first) {
         &, & .pagesjs-fragmented {
           border-top: none;
         }
       }
-      &:last-child {
+      &:not(.fragment-last) {
         &, & .pagesjs-fragmented {
           border-bottom: none;
         }

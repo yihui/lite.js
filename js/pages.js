@@ -64,14 +64,18 @@
       }
       box_body.append(el);
       fragment(el);
+      const cls = el.classList;
+      cls.contains(fr_cls) && cls.add(fr_2);
     }
   }
   // break elements that are relatively easy to break (such as <ul>)
   function fragment(el, container, parent, page) {
-    const tag = el.tagName, is_code = tag === 'CODE';
+    const tag = el.tagName, is_code = tag === 'CODE', cls = el.classList,
+      frag = cls.contains(fr_cls);
+    parent || frag && cls.remove(fr_1);
     // if <code>, keep fragmenting; otherwise exit when box fits
     if (!(is_code && container) && box.scrollHeight <= H) return;
-    el.classList.add(fr_cls);
+    parent ? cls.add(fr_cls) : (frag || cls.add(fr_cls, fr_1));
     const box_cur = page || box, el2 = el.cloneNode();  // shallow clone (wrapper only)
     // add the clone to current box, and move original el to next box
     container ? container.append(el2) : (
@@ -134,7 +138,7 @@
     }
     const el2_empty = removeBlank(el2);
     // if the clone is empty, remove it, otherwise keep fragmenting the remaining el
-    el2_empty && el.classList.remove(fr_cls);
+    el2_empty && cls.remove(fr_cls, fr_1, fr_2);
     if (!el2_empty || is_code || prev) fragment(container ? parent : el);
   }
 
