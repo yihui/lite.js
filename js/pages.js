@@ -15,7 +15,7 @@
   tpl.innerHTML = `<div class="pagesjs-header"></div>
 <div class="pagesjs-body"></div>
 <div class="pagesjs-footer"></div>`;
-  let box, box_body, H, box_cls = [], boxes = [], box_n = 0;
+  let box, box_body, box_cls = [], boxes = [], box_n = 0, H, h_code, l_code = [];
   function newPage(el) {
     const n = boxes.length;
     // finish previous n - 1 boxes
@@ -64,6 +64,7 @@
       }
       box_body.append(el);
       fragment(el);
+      l_code = [];  // clean up code lines
       const cls = el.classList;
       cls.contains(fr_cls) && cls.add(fr_2);
     }
@@ -74,7 +75,7 @@
       frag = cls.contains(fr_cls);
     parent || frag && cls.remove(fr_1);
     // if <code>, keep fragmenting; otherwise exit when box fits
-    if (!(is_code && container) && box.scrollHeight <= H) return;
+    if (!l_code.length && box.scrollHeight <= H) return;
     parent ? cls.add(fr_cls) : (frag || cls.add(fr_cls, fr_1));
     const box_cur = page || box, el2 = el.cloneNode();  // shallow clone (wrapper only)
     // add the clone to current box, and move original el to next box
@@ -84,7 +85,17 @@
     // fragment <pre>'s <code> and <div>'s single child (e.g., #TOC > ul)
     if (tag === 'PRE') {
       const code = el.firstElementChild;
-      code?.tagName == 'CODE' && /\n/.test(code.innerHTML) && fragment(code, el2, el, box_cur);
+      if (code?.tagName == 'CODE') {
+        const initial = l_code.length;
+        // store all lines in l_code
+        if (!initial) l_code = code.innerHTML.replace(/\n$/, '').split('\n');
+        const n_code = l_code.length;
+        if (n_code > 1) {
+          if (!initial) h_code = code.offsetHeight / n_code;  // approx line height
+          code.innerHTML = '';  // temporarily empty <code>; will use l_code
+          fragment(code, el2, el, box_cur);
+        }
+      }
     } else if (tag === 'DIV' && nChild(el) === 1) {
       fragment(el.firstElementChild, el2, el, box_cur);
     }
@@ -106,12 +117,11 @@
     }
     // split lines in <code> and try to move as many lines into el2 as possible
     if (is_code) {
-      const code = el.innerHTML.split('\n');
       // figure out how many lines can fit the box via bisection
-      let i = 0, i1 = 1, i2 = code.length;
-      const sols = [], h = el.offsetHeight / i2;  // approx height of a line
+      let i = 0, i1 = 1, i2 = n = l_code.length;
+      const sols = [];  // solutions tried
       function fillCode(el, i1, i2) {
-        el.innerHTML = code.slice(i1, i2).join('\n');
+        el.innerHTML = l_code.slice(i1, i2).join('\n');
       }
       while (i2 - i1 > 1) {
         fillCode(el2, 0, i || 1);
@@ -127,14 +137,22 @@
         }
         sols.push(i);
         // estimate the number of (more or less) lines needed
-        const i3 = i + Math.round(delta / h);
+        const i3 = i + Math.round(delta / h_code);
         // if a solution has been tried, shorten step and (in/de)crement by 1
         i = sols.includes(i3) ? i + (delta > 0 ? 1 : -1) : i3;
+        (delta > 0 && i >= n) && (i2 = n + 1, i = n);  // solution may be n
       }
       if (i > 0) {
-        fillCode(el2, 0, i1); fillCode(el, i1);
-        if (removeBlank(parent)) return;  // exit if <pre> is empty
-      } else el2.innerHTML = '';
+        fillCode(el2, 0, i1); l_code.splice(0, i1);
+        // exit if the rest of lines are empty
+        if (l_code.join('').trim() === '') {
+          container.before(parent); el.remove(); parent.append(el2);
+          boxes.pop().remove(); newPage(boxes[boxes.length - 1]);
+          return (l_code = []);
+        }
+      } else {
+        el2.innerHTML = ''; fillCode(el, 0); l_code = [];
+      }
     }
     const el2_empty = removeBlank(el2);
     // if the clone is empty, remove it, otherwise keep fragmenting the remaining el
