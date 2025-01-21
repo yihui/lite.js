@@ -38,9 +38,9 @@
     }
     box.remove();
   }
-  function removeBlank(el) {
+  function removeBlank(el, html = false) {
     if (!el) return false;
-    const v = el.innerText.trim() === '';
+    const v = (html ? el.innerHTML : el.innerText).trim() === '';
     v && el.remove();
     return v;
   }
@@ -100,7 +100,7 @@
     }
     const prev = el2.previousElementSibling;
     // keep moving el's first item to el2 until page height > H
-    if (['UL', 'OL', 'BLOCKQUOTE'].includes(tag) && nChild(el) > 1) while (true) {
+    if (['UL', 'OL', 'BLOCKQUOTE', 'FIELDSET'].includes(tag) && nChild(el) > 1) while (true) {
       const item = el.firstChild;
       if (!item) break;
       el2.append(item);
@@ -153,7 +153,8 @@
         el2.innerHTML = ''; fillCode(el, 0); l_code = []; parent.classList.remove(fr_cls, fr_1);
       }
     }
-    const el2_empty = removeBlank(el2);
+    const el2_empty = removeBlank(el2, true);
+    el2_empty && cls.remove(fr_cls, fr_1);
     // if the clone is empty, remove it, otherwise keep fragmenting the remaining el
     if (!el2_empty || is_code || prev) fragment(container ? parent : el);
   }
