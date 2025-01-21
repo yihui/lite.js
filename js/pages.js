@@ -55,18 +55,16 @@
         box.after(newPage());  // create a new empty page
       }
     } else {
-      // create a new box when too much content (exceeding original height)
-      if (box.scrollHeight > H) {
-        const [box2, box_body2] = [box, box_body];  // store old box
-        box2.after(newPage());
-        // if there's more than one child in the box, move the last child to next box
-        nChild(box_body2) > 1 && box_body.append(box_body2.lastChild);
-      }
       box_body.append(el);
-      fragment(el);
-      l_code = [];  // clean up code lines
+      if (box.scrollHeight <= H) return;
       const cls = el.classList;
-      cls.contains(fr_cls) && cls.add(fr_2);
+      // if el can be fragmented, add class *-last, otherwise remove class (e.g.,
+      // current box can't even hold el's first child so move whole el to new box)
+      const h0 = el.innerHTML;
+      fragment(el);
+      (cls.contains(fr_cls) && el.innerHTML !== h0) ? cls.add(fr_2) :
+        [el].concat(...$$(`.${fr_cls}`, el)).forEach(el => el.classList.remove(fr_cls, fr_1));
+      l_code = [];  // clean up code lines
     }
   }
   // break elements that are relatively easy to break (such as <ul>)
@@ -152,12 +150,11 @@
           return (l_code = []);
         }
       } else {
-        el2.innerHTML = ''; fillCode(el, 0); l_code = [];
+        el2.innerHTML = ''; fillCode(el, 0); l_code = []; parent.classList.remove(fr_cls, fr_1);
       }
     }
     const el2_empty = removeBlank(el2);
     // if the clone is empty, remove it, otherwise keep fragmenting the remaining el
-    el2_empty && cls.remove(fr_cls, fr_1, fr_2);
     if (!el2_empty || is_code || prev) fragment(container ? parent : el);
   }
 
