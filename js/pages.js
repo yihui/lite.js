@@ -88,8 +88,9 @@
       if (code?.tagName == 'CODE') {
         const initial = l_code.length;
         // store all lines in l_code
-        if (!initial) l_code = code.innerHTML.replace(/\n$/, '').split('\n');
-        const n_code = l_code.length;
+        if (!initial) l_code = code.innerHTML.split('\n');
+        let n_code = l_code.length;
+        if (n_code > 1 && l_code[n_code - 1] === '') n_code -= 1;  // ignore trailing \n
         if (n_code > 1) {
           if (!initial) h_code = code.offsetHeight / n_code;  // approx line height
           code.innerHTML = '';  // temporarily empty <code>; will use l_code
