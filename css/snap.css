@@ -1,7 +1,7 @@
 :root { --slide-width: 100%; }
 html { scroll-snap-type: y mandatory; }
 th, td { padding: .2em .5em; }
-.slide { padding: 0 1em; }
+.slide { padding: 0 1em; background-color: #fff; }
 .slide, .frontmatter .main, .middle .main {
   display: flex;
   flex-direction: column;
@@ -79,7 +79,6 @@ html:fullscreen {
     width: calc(100vh / var(--slide-ratio) / var(--slide-scale));
     box-shadow: 0 0 2em #888;
     clip-path: inset(0 -2em 0 -2em);
-    background: white;
     scroll-snap-align: start;
   }
   li li { font-size: .9em; }
