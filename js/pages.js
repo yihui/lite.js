@@ -6,6 +6,7 @@
   function nChild(el) { return el.childElementCount; }
 
   const tpl = d.createElement('div'), book = $$('h1').length > 1, boxes = [],
+    fr_tag = ['UL', 'OL', 'BLOCKQUOTE'],
     fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
     tb = ['top', 'bottom'].map(i => {
       const v = getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`);
@@ -28,6 +29,10 @@
     box_cls.length && box.classList.add(...box_cls);
     boxes.includes(box) || boxes.push(box);  // store new pages in boxes
     return box;
+  }
+  // place an element to the next page
+  function nextPage(el, cur = box) {
+    cur.after(newPage()); box_body.append(el);
   }
   // compute page numbers and temporarily remove the box
   function finish(box) {
@@ -57,6 +62,7 @@
     } else {
       box_body.append(el);
       if (box.scrollHeight <= H) return;
+      if (!breakable(el)) return nextPage(el);
       const cls = el.classList, h0 = el.innerHTML, n0 = boxes.length;
       fragment(el);
       // remove empty pages
@@ -73,6 +79,20 @@
   function fillCode(el, i1, i2) {
     el.innerHTML = l_code.slice(i1, i2).join('\n');
   }
+  function breakable(el) {
+    const t = el.tagName, c = el.firstElementChild;
+    if (fr_tag.includes(t) ||
+      (t === 'DIV' && nChild(el) === 1 && fr_tag.includes(c?.tagName))) return true;
+    if (t !== 'PRE') return false;
+    if (c?.tagName !== 'CODE') return false;
+    // store all lines in l_code
+    l_code = c.innerHTML.replace(/\n$/, '').split('\n');
+    const n_code = l_code.length;
+    if (n_code < 2) return false;
+    h_code = c.offsetHeight / n_code;  // approx line height
+    c.innerHTML = '';  // temporarily empty <code>; will use l_code
+    return true;
+  }
   // break elements that are relatively easy to break (such as <ul>)
   function fragment(el, container, parent, page) {
     const tag = el.tagName, cls = el.classList, frag = cls.contains(fr_cls);
@@ -82,42 +102,28 @@
     parent ? cls.add(fr_cls) : (frag || cls.add(fr_cls, fr_1));
     const box_cur = page || box, el2 = el.cloneNode();  // shallow clone (wrapper only)
     // add the clone to current box, and move original el to next box
-    container ? container.append(el2) : (
-      box_body.append(el2), box_cur.after(newPage()), box_body.append(el)
-    );
+    container ? container.append(el2) : (box_body.append(el2), nextPage(el, box_cur));
     // fragment <pre>'s <code> and <div>'s single child (e.g., #TOC > ul)
-    if (tag === 'PRE') {
-      const code = el.firstElementChild;
-      if (code?.tagName == 'CODE') {
-        const initial = l_code.length;
-        // store all lines in l_code
-        if (!initial) l_code = code.innerHTML.split('\n');
-        let n_code = l_code.length;
-        if (n_code > 1 && l_code[n_code - 1] === '') n_code -= 1;  // ignore trailing \n
-        if (n_code > 1) {
-          if (!initial) h_code = code.offsetHeight / n_code;  // approx line height
-          code.innerHTML = '';  // temporarily empty <code>; will use l_code
-          if (fragment(code, el2, el, box_cur)) {
-            // exit if the rest of lines are empty
-            if (l_code.join('').trim() === '') {
-              el2.before(el); el.innerHTML = el2.innerHTML; el2.remove();
-              boxes.pop().remove(); newPage(boxes[boxes.length - 1]); l_code = [];
-            }
-            if (!l_code.length) return; fragment(el);
-          } else {
-            // the current page can't hold the block; fragment it on next page
-            el2.remove(); [code, el].forEach(el => el.classList.remove(fr_cls, fr_1));
-            fragment(el);
-          }
-        } else fillCode(code, 0);
-      }
-      return removeBlank(el2);
-    } else if (tag === 'DIV' && nChild(el) === 1) {
+    if (tag === 'DIV') {
       fragment(el.firstElementChild, el2, el, box_cur);
+    } else if (tag === 'PRE') {
+      const code = el.firstElementChild;
+      if (fragment(code, el2, el, box_cur)) {
+        // stop when the rest of lines are empty
+        if (l_code.join('').trim() === '') {
+          el2.before(el); el.innerHTML = el2.innerHTML; el2.remove();
+          boxes.pop().remove(); newPage(boxes[boxes.length - 1]); l_code = [];
+        }
+      } else {
+        // the current page can't hold the block; fragment it on next page
+        el2.remove(); [code, el].forEach(el => el.classList.remove(fr_cls, fr_1));
+      }
+      fragment(el);
+      return removeBlank(el2);
     }
     const prev = el2.previousElementSibling;
     // keep moving el's first item to el2 until page height > H
-    if (['UL', 'OL', 'BLOCKQUOTE', 'FIELDSET'].includes(tag) && nChild(el) > 1) while (true) {
+    if (fr_tag.includes(tag)) while (true) {
       const item = el.firstChild;
       if (!item) break;
       el2.append(item);
@@ -132,33 +138,11 @@
       }
     }
     // split lines in <code> and try to move as many lines into el2 as possible
-    if (container && tag === 'CODE') {
-      // figure out how many lines can fit the box via bisection
-      let i = 0, i1 = 1, i2 = n = l_code.length;
-      const sols = [];  // solutions tried
-      while (i2 - i1 > 1) {
-        fillCode(el2, 0, i || 1);
-        const delta = H - box_cur.offsetHeight;
-        if (delta === 0) {
-          i1 = i || 1; break;
-        }
-        if (delta < 0) {
-          if (i <= 0) break;
-          i2 = i;
-        } else {
-          i1 = i;
-        }
-        sols.push(i);
-        // estimate the number of (more or less) lines needed
-        const i3 = i + Math.round(delta / h_code);
-        // if a solution has been tried, shorten step and (in/de)crement by 1
-        i = sols.includes(i3) ? i + (delta > 0 ? 1 : -1) : i3;
-        (delta > 0 && i >= n) && (i2 = n + 1, i = n);  // solution may be n
-      }
+    if (tag === 'CODE') {
+      const i = splitCode(el2, box_cur);
+      // i == 0 means not enough space to split code on current page
       if (i > 0) {
-        fillCode(el2, 0, i1); l_code.splice(0, i1);
-      } else {
-        el2.innerHTML = ''; fillCode(el, 0); l_code = [];  // not fragmented
+        fillCode(el2, 0, i); l_code.splice(0, i);
       }
       return i > 0;
     }
@@ -166,6 +150,30 @@
     el2_empty && cls.remove(fr_cls, fr_1);
     // if the clone is empty, remove it, otherwise keep fragmenting the remaining el
     if (!el2_empty || prev) fragment(container ? parent : el);
+  }
+  // figure out how many lines can fit the box via bisection
+  function splitCode(el, box) {
+    let i = i1 = 1, n = l_code.length, i2 = n + 2;
+    const sols = [];  // solutions tried
+    while (i2 > i1 + 1) {
+      fillCode(el, 0, i);
+      const delta = H - box.offsetHeight;
+      if (delta === 0) return i;
+      if (delta < 0) {
+        if (i <= 1) return 0;
+        i2 = i;
+      } else {
+        if (i >= n) return i;
+        i1 = i;
+      }
+      sols.push(i);
+      // estimate the number of (more or less) lines needed
+      const i3 = i + Math.round(delta / h_code);
+      // if a solution has been tried, shorten step and (in/de)crement by 1
+      i = sols.includes(i3) ? i + (delta > 0 ? 1 : -1) : i3;
+      (delta > 0 && i >= n) && (i2 = n + 2, i = n);  // solution may be n
+    }
+    return i1;
   }
 
   // use data-short-title of a header if exists, and fall back to inner text
