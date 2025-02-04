@@ -1,8 +1,6 @@
 /* mainly for litedown::pkg_manual() */
 .table-full {
   width: 100%;
-  border-top: 1px solid #666;
-  border-bottom: 1px solid #666;
   td {
     vertical-align: baseline;
     & > p {
