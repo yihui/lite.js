@@ -49,6 +49,23 @@
       inset: auto 5px 5px auto;
     }
   }
+  &.pagesjs-fragmented {
+    &:not(.fragment-first), &:not(.fragment-last) blockquote {
+      &::before, &::after {
+        display: none;
+      }
+    }
+    &:not(.fragment-first) {
+      &, blockquote {
+        padding-top: 1px;
+      }
+    }
+    &:not(.fragment-last) {
+      &, blockquote {
+        padding-bottom: 1px;
+      }
+    }
+  }
 }
 
 /* a tale of two buttons */
