@@ -70,7 +70,7 @@
     l_code = [];
     const t = el.tagName, c = el.firstElementChild;
     if (fr_tag.includes(t)) return true;
-    if (t === 'P') return el.innerText.trim();
+    if (t === 'P') return el.innerText.trim() && !el.matches(':has(img)');
     if (t === 'DIV') {
       const cs = el.children;
       return (cs.length === 1 && fr_tag.includes(c?.tagName)) ||
