@@ -202,21 +202,15 @@
         el2.innerHTML = el.innerHTML; el.innerHTML = ''; return;
       }
     }
-    const r = d.createRange(), ends = [], NF = NodeFilter;
-    // find the break position of each line
-    const walker = d.createTreeWalker(el, NF.SHOW_TEXT, node => {
-      let p = node.parentNode;
-      while (p !== el) {
-        // exclude block elements such as footnotes
-        if (p.tagName === 'DIV') return NF.FILTER_REJECT;
-        p = p.parentNode;
-      }
-      return node.textContent.trim() ? NF.FILTER_ACCEPT : NF.FILTER_SKIP;
-    });
-    let node = walker.nextNode(), prev;
-    while (node) {
+    const r = d.createRange(), ends = [];
+    // find the break position of each line (exclude block elements like footnotes)
+    const walker = d.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node, prev;
+    while (node = walker.nextNode()) {
+      const p = node.parentNode;
+      if (p !== el && p.closest('p div')) continue;
       const txt = node.textContent;
-      for (let i = 0; i < txt.length; i++) {
+      if (txt.trim()) for (let i = 0; i < txt.length; i++) {
         r.setStart(node, i); r.setEnd(node, i + 1);
         const rect = r.getBoundingClientRect();
         // if the previous char is at top-right of current char, assume line
@@ -224,7 +218,6 @@
         prev && prev.bottom <= rect.top && prev.right > rect.left && ends.push({node, i});
         prev = rect;
       }
-      node = walker.nextNode();
     }
     el.remove();
     ends.push({node: el, i: el.childNodes.length});
