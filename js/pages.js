@@ -10,13 +10,13 @@
     fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
     tb = ['top', 'bottom'].map(i => {
       const v = getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`);
-      return +v.replace('px', '') || 0;
+      return parseFloat(v) || 0;
     });  // top/bottom page margin
   tpl.className = 'pagesjs-page';
   tpl.innerHTML = `<div class="pagesjs-header"></div>
 <div class="pagesjs-body"></div>
 <div class="pagesjs-footer"></div>`;
-  let box, box_body, box_cls = [], H, h_code, l_code = [];
+  let box, box_body, box_cls = [], H, H_min, h_code, l_code = [];
   function newPage(el) {
     el && !$('.pagesjs-body', el) && el.insertAdjacentHTML('afterbegin', tpl.innerHTML);
     box = el || tpl.cloneNode(true); box_body = box.children[1];
@@ -39,7 +39,7 @@
   }
   function removeBlank(el) {
     if (!el || el.tagName === 'BODY') return false;
-    const v = el.innerText.trim() === '';
+    const v = !el.innerText.trim();
     v && el.remove();
     return v;
   }
@@ -53,6 +53,7 @@
         nextPage()  // create a new empty page
       ));
     } else {
+      if (el.innerText.trim() && H - box.scrollHeight < H_min) nextPage();
       box_body.append(el);
       if (box.scrollHeight > H) {
         // temporarily remove el from DOM if it can be fragmented, otherwise
@@ -232,6 +233,11 @@
     });
 
     cls.add('pagesjs-filling');
+
+    // test how much space a single-line paragraph needs
+    const p = d.createElement('p'), H0 = box.scrollHeight;
+    p.innerText = 'A'; box_body.append(p);
+    H_min = box.scrollHeight - H0; p.remove();
 
     // add dot leaders to TOC
     $$('#TOC a[href^="#"]').forEach(a => {
