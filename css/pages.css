@@ -85,11 +85,13 @@
       &:not(.fragment-first) {
         &, & .pagesjs-fragmented {
           border-top: none;
+          & > thead { opacity: .5; }
         }
       }
       &:not(.fragment-last) {
         &, & .pagesjs-fragmented {
           border-bottom: none;
+          & > tfoot { opacity: .5; }
         }
       }
     }
