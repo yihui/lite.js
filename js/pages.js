@@ -58,7 +58,8 @@
       if (box.scrollHeight > H) {
         // temporarily remove el from DOM if it can be fragmented, otherwise
         // simply move it to the next page
-        breakable(el) ? (el.remove(), fragment(el)) : nextPage(0, () => box_body.append(el));
+        breakable(el) ? (el.tagName !== 'P' && el.remove(), fragment(el)) :
+          nextPage(0, () => box_body.append(el));
       }
     }
   }
@@ -69,6 +70,7 @@
     l_code = [];
     const t = el.tagName, c = el.firstElementChild;
     if (fr_tag.includes(t)) return true;
+    if (t === 'P') return el.innerText.trim();
     if (t === 'DIV') {
       const cs = el.children;
       return (cs.length === 1 && fr_tag.includes(c?.tagName)) ||
@@ -90,6 +92,7 @@
     parent ? cls.add(fr_cls) : (frag ? cls.remove(fr_1) : cls.add(fr_cls, fr_1));
     const el2 = el.cloneNode();  // shallow clone (wrapper only)
     (container || box_body).append(el2);
+    if (tag === 'P') splitP(el, el2);
     const prev = el2.previousElementSibling;
     function fragChildren(action) {
       for (let item of [...el.children]) {
@@ -118,7 +121,8 @@
       }
     } else if (tag === 'TABLE') {
       // when el has no rows left and el2 is not empty, clear el
-      splitTable(el, el2) ? nextPage() : (el2.innerHTML !== '' && (el.innerHTML = ''));
+      const has_rows = splitTable(el, el2);
+      el2.innerHTML && (has_rows ? nextPage() : (el.innerHTML = ''));
     } else {
       // keep moving el's first item to el2 until page height > H
       fr_tag.slice(1).includes(tag) && fragChildren(item => {
@@ -188,6 +192,56 @@
       (delta > 0 && i >= n) && (i2 = n + 2, i = n);  // solution may be n
     }
     return i1;
+  }
+  // split <p> by testing if a range fits the current box
+  function splitP(el, el2) {
+    if (!el.parentNode) {
+      box_body.append(el);  // move el into DOM to measure chars if removed
+      // see if we don't need to split it now
+      if (box.scrollHeight <= H) {
+        el2.innerHTML = el.innerHTML; el.innerHTML = ''; return;
+      }
+    }
+    const r = d.createRange(), ends = [], NF = NodeFilter;
+    // find the break position of each line
+    const walker = d.createTreeWalker(el, NF.SHOW_TEXT, node => {
+      let p = node.parentNode;
+      while (p !== el) {
+        // exclude block elements such as footnotes
+        if (p.tagName === 'DIV') return NF.FILTER_REJECT;
+        p = p.parentNode;
+      }
+      return node.textContent.trim() ? NF.FILTER_ACCEPT : NF.FILTER_SKIP;
+    });
+    let node = walker.nextNode(), prev;
+    while (node) {
+      const txt = node.textContent;
+      for (let i = 0; i < txt.length; i++) {
+        r.setStart(node, i); r.setEnd(node, i + 1);
+        const rect = r.getBoundingClientRect();
+        // if the previous char is at top-right of current char, assume line
+        // ends before current char (TODO: how about RTL languages?)
+        prev && prev.bottom <= rect.top && prev.right > rect.left && ends.push({node, i});
+        prev = rect;
+      }
+      node = walker.nextNode();
+    }
+    el.remove();
+    ends.push({node: el, i: el.childNodes.length});
+    r.setStart(el, 0);  // start at beginning of paragraph
+    function fillLine(i, done) {
+      el2.innerHTML = '';
+      if (i < 0) return;
+      const loc = ends[i]; r.setEnd(loc.node, loc.i);
+      el2.append(r.cloneContents());
+      done && (r.deleteContents(), nextPage());
+    }
+    for (let i = 0; i < ends.length; i++) {
+      fillLine(i);
+      if (box.scrollHeight > H) {
+        fillLine(i - 1, true); break;
+      }
+    }
   }
 
   // use data-short-title of a header if exists, and fall back to inner text
