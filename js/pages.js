@@ -39,7 +39,8 @@
   }
   function removeBlank(el) {
     if (!el || el.tagName === 'BODY') return false;
-    const v = !el.innerText.trim();
+    // for <p>, don't treat it as empty unless its HTML is empty
+    const v = !(el.tagName === 'P' ? el.innerHTML : el.innerText).trim();
     v && el.remove();
     return v;
   }
@@ -69,8 +70,7 @@
   function breakable(el) {
     l_code = [];
     const t = el.tagName, c = el.firstElementChild;
-    if (fr_tag.includes(t)) return true;
-    if (t === 'P') return el.innerText.trim() && !el.matches(':has(img)');
+    if (t === 'P' || fr_tag.includes(t)) return true;
     if (t === 'DIV') {
       const cs = el.children;
       return (cs.length === 1 && fr_tag.includes(c?.tagName)) ||
@@ -204,19 +204,30 @@
     }
     const r = d.createRange(), ends = [];
     // find the break position of each line (exclude block elements like footnotes)
-    const walker = d.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const walker = d.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     let node, prev;
+    function collectEnds(el, i) {
+      const rect = el.getBoundingClientRect();
+      // if the previous el is at top-right of current el, assume line
+      // ends before current el (TODO: how about RTL languages?)
+      prev && prev.bottom <= rect.top && prev.right > rect.left && ends.push({node, i});
+      prev = rect;
+    }
     while (node = walker.nextNode()) {
-      const p = node.parentNode;
-      if (p !== el && p.closest('p div')) continue;
-      const txt = node.textContent;
-      if (txt.trim()) for (let i = 0; i < txt.length; i++) {
-        r.setStart(node, i); r.setEnd(node, i + 1);
-        const rect = r.getBoundingClientRect();
-        // if the previous char is at top-right of current char, assume line
-        // ends before current char (TODO: how about RTL languages?)
-        prev && prev.bottom <= rect.top && prev.right > rect.left && ends.push({node, i});
-        prev = rect;
+      if (node.tagName) {
+        if (node.tagName === 'DIV') {
+          node = walker.nextSibling();  // skip DIVs
+          if (!node) break;
+        }
+        if (node.firstChild) continue;  // for element nodes, traverse to bottom
+      }
+      if (node.tagName) {
+        collectEnds(node, -1);
+      } else {
+        const txt = node.textContent;
+        if (txt.trim()) for (let i = 0; i < txt.length; i++) {
+          r.setStart(node, i); r.setEnd(node, i + 1); collectEnds(r, i);
+        }
       }
     }
     el.remove();
@@ -225,7 +236,8 @@
     function fillLine(i, done) {
       el2.innerHTML = '';
       if (i < 0) return;
-      const loc = ends[i]; r.setEnd(loc.node, loc.i);
+      const loc = ends[i];
+      loc.i < 0 ? r.setEndBefore(loc.node) : r.setEnd(loc.node, loc.i);
       el2.append(r.cloneContents());
       done && (r.deleteContents(), nextPage());
     }
