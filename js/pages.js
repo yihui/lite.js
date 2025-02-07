@@ -8,10 +8,9 @@
   const tpl = d.createElement('div'), book = $$('h1').length > 1, boxes = [],
     fr_tag = ['TABLE', 'UL', 'OL', 'BLOCKQUOTE'],
     fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
-    tb = ['top', 'bottom'].map(i => {
-      const v = getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`);
-      return parseFloat(v) || 0;
-    });  // top/bottom page margin
+    tb = ['top', 'bottom'].map(i =>
+      parseFloat(getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`)) || 0
+    );  // top/bottom page margin
   tpl.className = 'pagesjs-page';
   tpl.innerHTML = `<div class="pagesjs-header"></div>
 <div class="pagesjs-body"></div>
@@ -93,7 +92,7 @@
     const el2 = el.cloneNode();  // shallow clone (wrapper only)
     (container || box_body).append(el2);
     if (tag === 'P') splitP(el, el2);
-    const prev = el2.previousElementSibling;
+    const prev = el2.previousElementSibling || container?.previousElementSibling;
     function fragChildren(action) {
       for (let item of [...el.children]) {
         el2.append(item);
@@ -121,13 +120,13 @@
       }
     } else if (tag === 'TABLE') {
       // when el has no rows left and el2 is not empty, clear el
-      const has_rows = splitTable(el, el2);
+      const has_rows = splitTable(el, el2, prev);
       el2.innerHTML && (has_rows ? nextPage() : (el.innerHTML = ''));
     } else {
       // keep moving el's first item to el2 until page height > H
       fr_tag.slice(1).includes(tag) && fragChildren(item => {
         // move item back to el if the clone el2 is not the only element on page or has more than one child
-        (prev || nChild(el2) > 1 || container?.previousElementSibling) && el.prepend(item);
+        (prev || nChild(el2) > 1) && el.prepend(item);
         // update the start number of <ol> on next page
         tag === 'OL' && (el.start += nChild(el2));
         // don't open new page if el2 is empty (will open one below when testing el2_empty)
@@ -153,7 +152,7 @@
     if ((!el2_empty || prev) && !parent) fragment(el);
   }
   // split table rows
-  function splitTable(el, el2) {
+  function splitTable(el, el2, prev) {
     const tb = el.tBodies[0], tb2 = tb.cloneNode(), rows = [...tb.rows], th = el.tHead;
     el2.append(tb2);
     // copy table header and footer
@@ -162,8 +161,9 @@
       const row = rows[i];
       tb2.append(row);
       if (box.offsetHeight > H) {
+        if (i > 0 || prev) tb.prepend(row);
         // clear the clone if current page can't fit even one row
-        tb.prepend(row); if (i === 0) el2.innerHTML = '';
+        if (i === 0 && prev) el2.innerHTML = '';
         break;
       }
     }
@@ -267,10 +267,10 @@
     // consider top/bottom page margin and table headers (which may be repeated on each page)
     const m = tb.concat([...$$('thead', box)].map(el => +el.offsetHeight)).reduce((m1, m2) => m1 + m2);
     if (!m) return n;
-    function newPages() { return Math.ceil((h + (n - 1) * m)/H); }
-    let n2 = newPages();
+    function nPages() { return Math.ceil((h + (n - 1) * m)/H); }
+    let n2 = nPages();
     while (n2 > n) {
-      n = n2; n2 = newPages();
+      n = n2; n2 = nPages();
     }
     return n;
   }
@@ -311,8 +311,9 @@
     // temporarily move all elements out of DOM (to speed up rendering single pages)
     const els = [];
     $$('.body').forEach(el => {
-      // move <style> into <head> so it can be applied regardless of its presence in <body>
-      const ch = [...el.children].filter(el => el.tagName !== 'STYLE' || d.head.append(el));
+      // move <style>/<link> into <head> so styles can be applied globally
+      const ch = [...el.children]
+        .filter(el => !['STYLE', 'LINK'].includes(el.tagName) || d.head.append(el));
       els.push(ch); ch.forEach(el => el.remove());
     });
     // iteratively add elements to pages
