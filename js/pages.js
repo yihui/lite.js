@@ -232,7 +232,7 @@
       }
     }
     if (ends.length < 2) {
-      el.remove(); nextPage(); return 1;  // single-line paragraph
+      el.remove(); return 1;  // single-line paragraph
     }
     el2.remove();
     // remove lines from the end of paragraph
