@@ -65,6 +65,7 @@
   }
   function fillCode(el, i) {
     el.innerHTML = l_code.slice(0, i).join('\n');
+    el.dataset.fillNum = i;
   }
   function breakable(el) {
     l_code = [];
@@ -118,7 +119,8 @@
       // split lines in <code> and try to move as many lines into el2 as possible
       const i = splitCode(el2);
       // i == 0 means not enough space to split code on current page
-      fillCode(el2, i); l_code.splice(0, i);
+      i != el2.dataset.fillNum && fillCode(el2, i); l_code.splice(0, i);
+      el2.removeAttribute('data-fill-num');
       if (i > 0) {
         l_code.join('').trim() === '' ? (l_code = []) : nextPage();
       }
