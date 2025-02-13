@@ -242,7 +242,7 @@
       loc.i < 0 ? r.setStartBefore(loc.node) : r.setStart(loc.node, loc.i);
       r.setEnd(el, el.childNodes.length);
       el2.prepend(r.extractContents());
-      if (box.scrollHeight <= H) {
+      if (i > 0 && box.scrollHeight <= H) {
         nextPage(); break;
       }
     }
