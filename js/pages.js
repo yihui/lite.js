@@ -89,9 +89,12 @@
   function fragment(el, container, parent) {
     const tag = el.tagName, cls = el.classList, frag = cls.contains(fr_cls);
     parent ? cls.add(fr_cls) : (frag ? cls.remove(fr_1) : cls.add(fr_cls, fr_1));
-    const el2 = el.cloneNode();  // shallow clone (wrapper only)
+    let el2 = el.cloneNode();  // shallow clone (wrapper only)
     (container || box_body).append(el2);
-    if (tag === 'P') splitP(el, el2);
+    if (tag === 'P') {
+      // fragmentation occurs in el instead of the clone el2, so swap them
+      splitP(el, el2) || ([el, el2] = [el2, el]);
+    }
     const prev = el2.previousElementSibling || container?.previousElementSibling;
     function fragChildren(action) {
       for (let item of [...el.children]) {
@@ -198,11 +201,9 @@
     if (!el.parentNode) {
       box_body.append(el);  // move el into DOM to measure chars if removed
       // see if we don't need to split it now
-      if (box.scrollHeight <= H) {
-        el2.innerHTML = el.innerHTML; el.innerHTML = ''; return;
-      }
+      if (box.scrollHeight <= H) return;
     }
-    const r = d.createRange(), ends = [];
+    const r = d.createRange(), ends = [{node: el, i: 0}];
     // find the break position of each line (exclude block elements like footnotes)
     const walker = d.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     let node, prev;
@@ -230,21 +231,18 @@
         }
       }
     }
-    el.remove();
-    ends.push({node: el, i: el.childNodes.length});
-    r.setStart(el, 0);  // start at beginning of paragraph
-    function fillLine(i, done) {
-      el2.innerHTML = '';
-      if (i < 0) return;
-      const loc = ends[i];
-      loc.i < 0 ? r.setEndBefore(loc.node) : r.setEnd(loc.node, loc.i);
-      el2.append(r.cloneContents());
-      done && (r.deleteContents(), nextPage());
+    if (ends.length < 2) {
+      el.remove(); nextPage(); return 1;  // single-line paragraph
     }
-    for (let i = 0; i < ends.length; i++) {
-      fillLine(i);
-      if (box.scrollHeight > H) {
-        fillLine(i - 1, true); break;
+    el2.remove();
+    // remove lines from the end of paragraph
+    for (let i = ends.length - 1; i >= 0; i--) {
+      const loc = ends[i];
+      loc.i < 0 ? r.setStartBefore(loc.node) : r.setStart(loc.node, loc.i);
+      r.setEnd(el, el.childNodes.length);
+      el2.prepend(r.extractContents());
+      if (box.scrollHeight <= H) {
+        nextPage(); break;
       }
     }
   }
