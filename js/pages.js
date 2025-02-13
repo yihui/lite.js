@@ -215,9 +215,10 @@
       prev = rect;
     }
     while (node = walker.nextNode()) {
-      if (node.tagName) {
-        if (node.tagName === 'DIV') {
-          node = walker.nextSibling();  // skip DIVs
+      const t = node.tagName;
+      if (t) {
+        if (['DIV', 'MJX-CONTAINER'].includes(t) || (t === 'SPAN' && $('.katex', node))) {
+          node = walker.nextSibling();  // skip DIVs (footnotes) and math
           if (!node) break;
         }
         if (node.firstChild) continue;  // for element nodes, traverse to bottom
