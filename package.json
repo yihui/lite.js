@@ -1,6 +1,6 @@
 {
   "name": "@xiee/utils",
-  "version": "1.14.5",
+  "version": "1.14.6",
   "description": "Miscellaneous tools and utilities to manipulate HTML pages",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
