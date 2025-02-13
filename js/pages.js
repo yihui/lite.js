@@ -87,13 +87,14 @@
   }
   // break elements that are relatively easy to break (such as <ul>)
   function fragment(el, container, parent) {
-    const tag = el.tagName, cls = el.classList, frag = cls.contains(fr_cls);
+    let cls = el.classList;
+    const tag = el.tagName, frag = cls.contains(fr_cls);
     parent ? cls.add(fr_cls) : (frag ? cls.remove(fr_1) : cls.add(fr_cls, fr_1));
     let el2 = el.cloneNode();  // shallow clone (wrapper only)
     (container || box_body).append(el2);
     if (tag === 'P') {
       // fragmentation occurs in el instead of the clone el2, so swap them
-      splitP(el, el2) || ([el, el2] = [el2, el]);
+      splitP(el, el2) || ([el, el2] = [el2, el], cls = el.classList);
     }
     const prev = el2.previousElementSibling || container?.previousElementSibling;
     function fragChildren(action) {
