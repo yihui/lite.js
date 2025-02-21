@@ -152,6 +152,13 @@ pre:has(code[data-file]) {
   }
 }
 
+pre .ex-out {
+  position: absolute;
+  inset: auto 5px 0 auto;
+  text-decoration: none;
+  font-size: 1.5em;
+}
+
 .no-ref-label {
   .cross-ref-sec:before {
     content: "";
