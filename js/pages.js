@@ -283,6 +283,7 @@
 
     const cls = d.body.classList;
     if (cls.contains('pagesjs')) return;  // already paginated
+    dispatchEvent(new Event('pagesjs:before'));
 
     cls.add('pagesjs');
     d.body.insertAdjacentElement('afterbegin', newPage());
@@ -368,6 +369,7 @@
         p = $(`.pagesjs-page:has(#${id}) .pagesjs-header`);
       a.dataset.pageNumber = p ? p.dataset.pageNumber : '';
     });
+    dispatchEvent(new Event('pagesjs:after'));
   }
   addEventListener('beforeprint', paginate);
   // persistent pagination upon page reload (press p again to cancel it)
