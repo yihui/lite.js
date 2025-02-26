@@ -316,7 +316,7 @@
     $$('.body').forEach(el => {
       // move <style>/<link> into <head> so styles can be applied globally
       const ch = [...el.children]
-        .filter(el => !['STYLE', 'LINK'].includes(el.tagName) || d.head.append(el));
+        .filter(el => !['STYLE', 'LINK'].includes(el.tagName) || d.body.prepend(el));
       els.push(ch); ch.forEach(el => el.remove());
     });
     // iteratively add elements to pages
