@@ -152,7 +152,8 @@ pre:has(code[data-file]) {
   }
 }
 
-pre .ex-out {
+pre .ex-out::after {
+  content: "⏵";
   position: absolute;
   inset: auto 5px 0 auto;
   text-decoration: none;
