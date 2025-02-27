@@ -303,11 +303,12 @@
 
     // add dot leaders to TOC
     $$('#TOC a[href^="#"]').forEach(a => {
-      const s = d.createElement('span'),  // move TOC item content into a span
-        n = a.firstElementChild;  // if first child is section number, exclude it
-      n?.classList.contains('section-number') ? n.after(s) : a.insertAdjacentElement('afterbegin', s);
-      while (s.nextSibling) s.append(s.nextSibling);
-      a.insertAdjacentHTML('beforeend', '<span class="dot-leader"></span>');
+      const s = d.createElement('span');  // move TOC item content into a span
+      s.className = 'toc-text'; a.append(s);
+      let c; while (c = s.previousSibling) {
+        // exclude section number spans
+        if (c.classList?.contains('section-number')) break; s.prepend(c);
+      }
       a.dataset.pageNumber = '000';  // placeholder for page numbers
     });
 

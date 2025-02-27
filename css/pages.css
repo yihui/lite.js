@@ -70,14 +70,23 @@
         &::after {
           content: attr(data-page-number);
           align-self: end;
+          margin-left: 1ch;
         }
         .section-number {
           margin-right: .3em;
         }
-        .dot-leader {
-          flex: 1 0 2em;
-          border-bottom: dashed 1px;
-          margin: 0 1ex 1ex;
+        .toc-text {
+          position: relative;
+          flex: 1 0;
+          overflow: hidden;
+          &::after {
+            content: "";
+            width: 100%;
+            position: absolute;
+            bottom: 1.5ex;
+            margin-left: 1ch;
+            border-bottom: dashed 1px;
+          }
         }
       }
     }
