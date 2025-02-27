@@ -90,11 +90,9 @@
 
 /* arrange elements in columns */
 .flex-col {
-  display: flex;
-  justify-content: space-between;
   gap: .5em;
   * {
-    flex: 1;
+    flex: 1 0 auto;
   }
   pre:has(code[data-file]) {
     &, &::before {
