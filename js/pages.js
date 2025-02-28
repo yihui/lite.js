@@ -373,10 +373,17 @@
     dispatchEvent(new Event('pagesjs:after'));
   }
   addEventListener('beforeprint', paginate);
-  // persistent pagination upon page reload (press p again to cancel it)
-  let pg = sessionStorage.getItem('pagesjs');
-  pg && paginate();
-  addEventListener('keypress', e => e.key === 'p' && (
-    paginate(), pg = pg ? '' : '1', sessionStorage.setItem('pagesjs', pg), pg || location.reload()
-  ));
+  // use query param ?paged=1 to indicate pagination (press p to toggle)
+  const SP = new URLSearchParams(location.search);
+  SP.get('paged') && paginate();
+  addEventListener('keypress', e => {
+    if (e.key === 'p') {
+      if (SP.get('paged')) {
+        SP.delete('paged'); location.href = location.pathname + (SP.size ? `?${SP}` : '');
+      } else {
+        paginate();
+        SP.set('paged', 1); history.replaceState({}, '', `${location.pathname}?${SP}`);
+      }
+    }
+  });
 })(document);
