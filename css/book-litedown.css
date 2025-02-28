@@ -92,7 +92,7 @@
 .flex-col {
   gap: .5em;
   * {
-    flex: 1 0 auto;
+    flex: 1 0 min-content;
   }
   pre:has(code[data-file]) {
     &, &::before {
