@@ -60,6 +60,8 @@
         // simply move it to the next page
         breakable(el) ? (el.tagName !== 'P' && el.remove(), fragment(el)) :
           nextPage(0, () => box_body.append(el));
+      } else {
+        // TODO: remove possibly duplicated citations: .citation + div > [id^="ref-"]
       }
     }
   }

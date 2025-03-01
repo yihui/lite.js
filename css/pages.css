@@ -181,6 +181,10 @@
       height: auto;
       .pagesjs-body:has(.footnotes) {
         margin-bottom: 1em;
+        .footnotes {
+          float: left;
+          width: 100%;
+        }
       }
     }
   }

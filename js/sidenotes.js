@@ -1,23 +1,22 @@
 // move footnotes (ids start with fn) and citations (ids start with ref-) to sidenotes
 (d => {
-  d.querySelectorAll('.footnotes > ol > li[id^="fn"], #refs > *[id^="ref-"]').forEach(el => {
+  d.querySelectorAll('.footnotes > ol > li[id^="fn"], #refs > [id^="ref-"]').forEach(el => {
     // find <a> that points to note id in body
     const h = `a[href="#${el.id}"]`;
     d.querySelectorAll(`${h} > sup, sup > ${h}, .citation > ${h}, ${h}.citation`).forEach(a => {
       const a2 = a.parentNode;
       (a.tagName === 'A' ? a : a2).removeAttribute('href');
       const s = d.createElement('div');  // insert a side div next to a2 in body
-      s.className = 'side side-right';
+      s.className = 'side side-right footnotes';
       if (/^fn/.test(el.id)) {
         s.innerHTML = el.innerHTML;
         // add footnote number
         s.firstElementChild.insertAdjacentHTML('afterbegin', `<span class="bg-number">${a.innerText}</span> `);
         s.querySelector('a[href^="#fnref"]')?.remove();  // remove backreference
-        s.className += ' footnotes';
       } else {
         s.innerHTML = el.outerHTML;
       }
-      while (s.lastChild?.nodeName === '#text' && /^\s*$/.test(s.lastChild.textContent)) {
+      while (s.lastChild?.nodeName === '#text' && !s.lastChild.textContent.trim()) {
         s.lastChild.remove();
       }
       // remove fullwidth classes if present (because they cannot be used in the margin)
@@ -31,7 +30,7 @@
   });
   // remove the footnote/citation section if it's empty now
   d.querySelectorAll('.footnotes, #refs').forEach(el => {
-    /^\s*$/.test(el.innerText) && el.remove();
+    el.innerText.trim() || el.remove();
   });
   // also add side classes to TOC
   d.getElementById('TOC')?.classList.add('side', 'side-left');
