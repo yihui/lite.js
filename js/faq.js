@@ -8,7 +8,7 @@
     for (let li of lis) {
       if (li.childElementCount < 2) return;
     }
-    
+
     let ls = el.classList;
     if (ls.length > 0 && !ls.contains(cls_list)) return;
     ls.add(cls_list);
@@ -32,7 +32,7 @@
       let li = lis[i];
       li.id = 'faq-' + (id ? id + '-' : '') + (i + 1);
       let p = li.firstElementChild;
-      p.insertAdjacentHTML('beforeend', ` <span class="anchor"><a href="#${li.id}">#</a></span>`);
+      p.insertAdjacentHTML('beforeend', ` <span class="anchor"><a href="#${li.id}"></a></span>`);
       if (location.hash === '#' + li.id) {
         li.scrollIntoView();
         li.classList.add(cls_clicked);
