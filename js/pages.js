@@ -247,6 +247,7 @@
       loc.i < 0 ? r.setStartBefore(loc.node) : r.setStart(loc.node, loc.i);
       r.setEnd(el, el.childNodes.length);
       el2.prepend(r.extractContents());
+      removeBlank(el.lastChild);  // strip trailing empty tags left by range extraction
       if (i > 0 && box.scrollHeight <= H) {
         nextPage(); break;
       }
