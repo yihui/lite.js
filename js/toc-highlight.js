@@ -26,6 +26,7 @@
     for (const i in dict) {
       dict[i].classList.toggle('active', i === id_active);
     }
+    dict[id_active]?.scrollIntoView();
   }));
 
   // observe all section headings associated with TOC links
