@@ -9,6 +9,8 @@
     }
   }
 }
+dt { font-weight: bold; }
+.side .pkg-desc dd { margin-left: 0; }
 code.fade::before {
   content: "🚫";
   float: right;
