@@ -17,9 +17,10 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           registry-url: 'https://registry.npmjs.org'
+      - run: sudo npm install -g npm@latest
       - run: ./build.sh
       - run: ./purge.sh || true
-      - run: npm publish --access public
+      - run: npm publish
