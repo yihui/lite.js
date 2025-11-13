@@ -7,7 +7,7 @@
   links.forEach(a => dict[a.getAttribute('href').replace('#', '')] = a);
   const ids = Object.keys(dict);
 
-  let id_active;
+  let id_active, id_last;
   // status: 1 if an id is currently in the viewport, otherwise 0
   const status = Array(ids.length).fill(0);
   // create a new Intersection Observer instance
@@ -23,10 +23,18 @@
       // if a heading exits from bottom and no heading is in view, activate previous ID
       id_active = i > 0 ? ids[i - 1] : undefined;
     }
+    if (id_active === id_last) return;
     for (const i in dict) {
       dict[i].classList.toggle('active', i === id_active);
     }
-    dict[id_active]?.scrollIntoView();
+    id_last = id_active;
+    // in case the active TOC item is not in the view, scroll TOC to make it visible
+    const a = dict[id_active];
+    if (!a || toc.scrollHeight <= toc.clientHeight) return;
+    const ra = a.getBoundingClientRect(), rt = toc.getBoundingClientRect();
+    if (ra.top < rt.top || ra.bottom > rt.bottom) toc.scrollTo({
+      top: a.offsetTop, behavior: 'smooth'
+    });
   }));
 
   // observe all section headings associated with TOC links
