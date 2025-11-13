@@ -1,5 +1,5 @@
 /* mainly for litedown::pkg_manual() */
-.table-full {
+.table-full, h3[id^="sec:arguments"] + table {
   width: 100%;
   td {
     vertical-align: baseline;
