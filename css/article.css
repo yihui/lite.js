@@ -25,6 +25,8 @@ body, blockquote, .side { background: #fafafa; }
 .side {
   width: var(--side-width);
   margin: 0 auto;
+  max-height: 100vh;
+  overflow: auto;
 }
 .side-left {
   float: left;
