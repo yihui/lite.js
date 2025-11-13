@@ -18,7 +18,8 @@ nav a {
   margin-right: .5em;
 }
 nav a:hover {
-  filter: invert(1);
+  background: #4682b4;
+  color: white;
 }
 .body, .frontmatter, .body ~ .appendix {
   box-shadow: none;
