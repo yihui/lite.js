@@ -68,14 +68,14 @@ body, blockquote, .side { background: #fafafa; }
 .fullwidth {
   max-width: calc(100vw - 2em);
   margin: 1em 0 1em 50%;
-  & * {
-    max-width: calc(100vw - 4em);
-    margin: auto 0;
-  }
   transform: translateX(-50%);
   float: left;
   min-width: 100%;
   background: #fff;
+  & * {
+    max-width: calc(100vw - 4em);
+    margin: auto 0;
+  }
   & :is(figcaption, .caption) {
     margin-left: calc(50% - 400px);
     width: 800px;
