@@ -148,6 +148,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
     padding: initial;
     main, .body { padding: 0 .5em 0; }
     #TOC { columns: 1; }
+    :not(pre) > code { word-break: break-word; }
     .quote-left, .quote-right {
       width: inherit;
       float: inherit;
