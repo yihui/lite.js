@@ -5,11 +5,16 @@
   const h = d.querySelector([1, 2, 3, 4, 5, 6].map(i => `h${i}.appendix`).join(','));
   if (!h) return;
   h.classList.remove('appendix');
-  // if h is in a wrapper whose next sibling has the same class, simply add class to wrappers
-  const p1 = h.parentNode; let p2 = p1, wrapper = false;
+  // test if two elements have same tag and class
+  function sameClass(e1, e2) {
+    return e1 && e2 && e1.tagName === e2.tagName && e1.className === e2.className;
+  }
+  // if h is in a wrapper whose prev/next sibling has the same class, simply add class to wrappers
+  const p1 = h.parentNode, p0 = p1.previousElementSibling;
+  let wrapper = sameClass(p1, p0), p2 = p1;
   while (p1) {
     p2 = p2.nextElementSibling;
-    if (!p2 || p1.tagName !== p2.tagName || p1.className !== p2.className) break;
+    if (!sameClass(p1, p2)) break;
     p2.classList.add('appendix');
     wrapper = true;
   }
