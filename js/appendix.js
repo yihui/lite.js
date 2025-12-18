@@ -11,14 +11,22 @@
   }
   // if h is in a wrapper whose prev/next sibling has the same class, simply add class to wrappers
   const p1 = h.parentNode, p0 = p1.previousElementSibling;
-  let wrapper = sameClass(p1, p0), p2 = p1;
+  let has_wrapper = sameClass(p1, p0), h0 = h, p2 = p1;
+  // if has_wrapper == false, check if there's any sibling heading before h
+  if (!has_wrapper) while (true) {
+    h0 = h0.previousElementSibling;
+    if (!h0) break;
+    // if a heading is found, assume the appendix needs a new wrapper
+    has_wrapper = !/^H[1-6]/.test(h0.tagName);
+    if (!has_wrapper) break;  // heading found, appendix doesn't have wrapper
+  }
   while (p1) {
     p2 = p2.nextElementSibling;
     if (!sameClass(p1, p2)) break;
     p2.classList.add('appendix');
-    wrapper = true;
+    has_wrapper = true;
   }
-  if (wrapper) {
+  if (has_wrapper) {
     p1.classList.add('appendix');
     return;
   }
