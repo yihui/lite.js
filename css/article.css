@@ -20,7 +20,7 @@ body, blockquote, .side { background: #fafafa; }
   background: lightslategray;
   color: #fff;
 }
-div:has(> table) { overflow-x: auto; }
+div:not(.body):has(> table) { overflow-x: auto; }
 
 /* left/right elements*/
 .side {
