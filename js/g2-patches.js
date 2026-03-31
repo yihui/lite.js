@@ -1,10 +1,10 @@
 // support columnar data format in G2
-G2.register('data.column', (options) => {
+G2.register("data.column", (options) => {
   const { value } = options;
   return async () => {
     let d = value;
     // handle URL strings if necessary
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       const resp = await fetch(value);
       d = await resp.json();
     }
@@ -12,7 +12,40 @@ G2.register('data.column', (options) => {
     if (keys.length === 0) return [];
     // convert to row-based data
     return d[keys[0]].map((_, i) =>
-      keys.reduce((row, key) => (row[key] = d[key][i], row), {})
+      keys.reduce((row, key) => ((row[key] = d[key][i]), row), {}),
     );
   };
 });
+
+// modify G2's theme default font sizes and point sizes
+(() => {
+  const FONT_SCALE = 4 / 3,
+    POINT_RADIUS = 5,
+    FONT_RE = /[fF]ontSize$/;
+
+  const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+
+  const scaleFontSizes = (obj) => {
+    if (!isObj(obj)) return;
+    for (const [key, value] of Object.entries(obj)) {
+      if (isObj(value)) scaleFontSizes(value);
+      else if (typeof value === "number" && FONT_RE.test(key))
+        obj[key] = value * FONT_SCALE;
+    }
+  };
+
+  const patchTheme = (theme) => {
+    scaleFontSizes(theme);
+    if (isObj(theme.point))
+      for (const style of Object.values(theme.point))
+        if (isObj(style) && typeof style.r === "number") style.r = POINT_RADIUS;
+    return theme;
+  };
+
+  for (const name of ["Light", "Dark", "Classic", "ClassicDark", "Academy"]) {
+    const original = G2[name];
+    if (typeof original !== "function") continue;
+    let cache;
+    G2[name] = (...args) => (cache ??= patchTheme(original(...args)));
+  }
+})();
