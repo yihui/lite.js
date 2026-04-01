@@ -39,6 +39,7 @@ G2.register("data.column", (options) => {
     if (isObj(theme.point))
       for (const style of Object.values(theme.point))
         if (isObj(style) && typeof style.r === "number") style.r = POINT_RADIUS;
+    if (isObj(theme.axis)) theme.axis.gridStrokeOpacity = 0.25;
     return theme;
   };
 
