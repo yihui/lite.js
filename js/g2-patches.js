@@ -17,10 +17,9 @@ G2.register("data.column", (options) => {
   };
 });
 
-// modify G2's theme default font sizes and point sizes
+// modify G2 defaults: font sizes and grid opacity
 (() => {
   const FONT_SCALE = 4 / 3,
-    POINT_RADIUS = 5,
     FONT_RE = /[fF]ontSize$/;
 
   const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
@@ -36,9 +35,6 @@ G2.register("data.column", (options) => {
 
   const patchTheme = (theme) => {
     scaleFontSizes(theme);
-    if (isObj(theme.point))
-      for (const style of Object.values(theme.point))
-        if (isObj(style) && typeof style.r === "number") style.r = POINT_RADIUS;
     if (isObj(theme.axis)) theme.axis.gridStrokeOpacity = 0.25;
     return theme;
   };
