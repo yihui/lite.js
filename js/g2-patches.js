@@ -17,7 +17,7 @@ G2.register("data.column", (options) => {
   };
 });
 
-// modify G2 defaults: font sizes, grid opacity, and point radius
+// modify G2 defaults: font sizes, grid opacity, point radius, shapes, and inset
 (() => {
   const FONT_SCALE = 4 / 3,
     FONT_RE = /[fF]ontSize$/,
@@ -41,6 +41,7 @@ G2.register("data.column", (options) => {
         if (isObj(style) && typeof style.r === "number")
           style.r = POINT_RADIUS;
     if (isObj(theme.axis)) theme.axis.gridStrokeOpacity = 0.25;
+    theme.inset = 16;
     return theme;
   };
 
@@ -76,4 +77,38 @@ G2.register("data.column", (options) => {
     for (const [i, e] of (lib[key]?.props?.postInference ?? []).entries())
       if (e.type === G2.MaybeSize)
         lib[key].props.postInference[i] = { type: CustomMaybeSize };
+
+  // Reorder point shapes: solid shapes first, then hollow ones.
+  for (const key of ["mark.point", "mark.beeswarm"]) {
+    const mark = lib[key];
+    if (!mark?.props?.shape) continue;
+    mark.props.defaultShape = "point";
+    const oldKeys = Object.keys(mark.props.shape);
+    const solid = oldKeys.filter((k) => !/^hollow/.test(k));
+    const hollow = oldKeys.filter((k) => /^hollow/.test(k));
+    const newShape = {};
+    for (const k of [...solid, ...hollow]) newShape[k] = mark.props.shape[k];
+    mark.props.shape = newShape;
+    for (const ch of mark.props.channels || [])
+      if (ch.name === "shape") ch.range = Object.keys(newShape);
+  }
+
+  // Scale hardcoded label font sizes in composite marks.
+  for (const key of ["mark.sankey", "mark.chord", "mark.treemap"]) {
+    const orig = lib[key];
+    if (typeof orig !== "function") continue;
+    const wrapped = function (...args) {
+      const result = orig.apply(this, args);
+      for (const m of Array.isArray(result) ? result : [result]) {
+        if (!Array.isArray(m?.labels)) continue;
+        for (const l of m.labels)
+          if (typeof l?.fontSize === "number") l.fontSize *= FONT_SCALE;
+      }
+      return result;
+    };
+    wrapped.props = orig.props;
+    try {
+      G2.register(key, wrapped);
+    } catch (_) {}
+  }
 })();
