@@ -83,11 +83,9 @@ G2.register("data.column", (options) => {
     const mark = lib[key];
     if (!mark?.props?.shape) continue;
     mark.props.defaultShape = "point";
-    const oldKeys = Object.keys(mark.props.shape);
-    const solid = oldKeys.filter((k) => !/^hollow/.test(k));
-    const hollow = oldKeys.filter((k) => /^hollow/.test(k));
-    const newShape = {};
-    for (const k of [...solid, ...hollow]) newShape[k] = mark.props.shape[k];
+    const newShape = Object.fromEntries(
+      Object.entries(mark.props.shape).sort(([a], [b]) => /^hollow/.test(a) - /^hollow/.test(b))
+    );
     mark.props.shape = newShape;
     for (const ch of mark.props.channels || [])
       if (ch.name === "shape") ch.range = Object.keys(newShape);
