@@ -17,10 +17,11 @@ G2.register("data.column", (options) => {
   };
 });
 
-// modify G2 defaults: font sizes and grid opacity
+// modify G2 defaults: font sizes, grid opacity, and point radius
 (() => {
   const FONT_SCALE = 4 / 3,
-    FONT_RE = /[fF]ontSize$/;
+    FONT_RE = /[fF]ontSize$/,
+    POINT_RADIUS = 5;
 
   const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
 
@@ -35,6 +36,10 @@ G2.register("data.column", (options) => {
 
   const patchTheme = (theme) => {
     scaleFontSizes(theme);
+    if (isObj(theme.point))
+      for (const style of Object.values(theme.point))
+        if (isObj(style) && typeof style.r === "number")
+          style.r = POINT_RADIUS;
     if (isObj(theme.axis)) theme.axis.gridStrokeOpacity = 0.25;
     return theme;
   };
@@ -51,4 +56,24 @@ G2.register("data.column", (options) => {
       G2.register(key, G2[name]);
     } catch (_) {}
   }
+
+  // Patch default point/symbol size. G2's MaybeSize transform hardcodes 3 as
+  // the constant visual size for point marks when no explicit size encoding is
+  // provided. The theme point.*.r values above are fallbacks that MaybeSize
+  // shadows, so we must also replace MaybeSize in each mark's postInference.
+  const CustomMaybeSize = () => (I, mark) => {
+    if (mark.encode.size !== undefined) return [I, mark];
+    const value = [];
+    for (const i of I) value[i] = POINT_RADIUS;
+    return [
+      I,
+      { ...mark, encode: { ...mark.encode, size: { type: "column", value, visual: true } } },
+    ];
+  };
+  CustomMaybeSize.props = {};
+  const lib = G2.corelib();
+  for (const key of ["mark.point", "mark.beeswarm"])
+    for (const [i, e] of (lib[key]?.props?.postInference ?? []).entries())
+      if (e.type === G2.MaybeSize)
+        lib[key].props.postInference[i] = { type: CustomMaybeSize };
 })();
