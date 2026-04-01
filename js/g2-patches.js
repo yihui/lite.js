@@ -102,8 +102,10 @@ G2.register("data.column", (options) => {
   }
 
   // Scale hardcoded label font sizes in composite marks.
+  // These marks live in G2.graphlib(), not G2.corelib().
+  const graphLib = G2.graphlib?.() ?? {};
   for (const key of ["mark.sankey", "mark.chord", "mark.treemap"]) {
-    const orig = lib[key];
+    const orig = graphLib[key];
     if (typeof orig !== "function") continue;
     const wrapped = function (...args) {
       const result = orig.apply(this, args);
