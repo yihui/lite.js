@@ -47,5 +47,11 @@ G2.register("data.column", (options) => {
     if (typeof original !== "function") continue;
     let cache;
     G2[name] = (...args) => (cache ??= patchTheme(original(...args)));
+    // Re-register in G2's internal library so charts pick up the patched theme.
+    // The registry key is 'theme.light', 'theme.classicDark', etc.
+    const key = "theme." + name[0].toLowerCase() + name.slice(1);
+    try {
+      G2.register(key, G2[name]);
+    } catch (_) {}
   }
 })();
