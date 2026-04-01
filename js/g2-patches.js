@@ -36,6 +36,11 @@ G2.register("data.column", (options) => {
 
   const patchTheme = (theme) => {
     scaleFontSizes(theme);
+    if (
+      isObj(theme.legendCategory) &&
+      typeof theme.legendCategory.itemMarkerSize === "number"
+    )
+      theme.legendCategory.itemMarkerSize *= FONT_SCALE;
     if (isObj(theme.point))
       for (const style of Object.values(theme.point))
         if (isObj(style) && typeof style.r === "number")
