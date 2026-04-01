@@ -36,10 +36,14 @@ G2.register("data.column", (options) => {
 
   const patchTheme = (theme) => {
     scaleFontSizes(theme);
+    if (
+      isObj(theme.legendCategory) &&
+      typeof theme.legendCategory.itemMarkerSize === "number"
+    )
+      theme.legendCategory.itemMarkerSize *= FONT_SCALE;
     if (isObj(theme.point))
       for (const style of Object.values(theme.point))
-        if (isObj(style) && typeof style.r === "number")
-          style.r = POINT_RADIUS;
+        if (isObj(style) && typeof style.r === "number") style.r = POINT_RADIUS;
     if (isObj(theme.axis)) theme.axis.gridStrokeOpacity = 0.25;
     return theme;
   };
@@ -67,7 +71,13 @@ G2.register("data.column", (options) => {
     for (const i of I) value[i] = POINT_RADIUS;
     return [
       I,
-      { ...mark, encode: { ...mark.encode, size: { type: "column", value, visual: true } } },
+      {
+        ...mark,
+        encode: {
+          ...mark.encode,
+          size: { type: "column", value, visual: true },
+        },
+      },
     ];
   };
   CustomMaybeSize.props = {};
