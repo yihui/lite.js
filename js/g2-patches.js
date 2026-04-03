@@ -21,7 +21,7 @@ G2.register("data.column", (options) => {
 (() => {
   const FONT_SCALE = 4 / 3,
     FONT_RE = /[fF]ontSize$/,
-    POINT_RADIUS = 5;
+    POINT_RADIUS = 4;
 
   const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
 
