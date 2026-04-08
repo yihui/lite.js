@@ -11,9 +11,9 @@ G2.register("data.column", (options) => {
     const keys = Object.keys(d);
     if (keys.length === 0) return [];
     // convert to row-based data
-    return d[keys[0]].map((_, i) =>
+    return Array.isArray(d[keys[0]]) ? d[keys[0]].map((_, i) =>
       keys.reduce((row, key) => ((row[key] = d[key][i]), row), {}),
-    );
+    ) : [d];
   };
 });
 
