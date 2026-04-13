@@ -57,9 +57,16 @@ G2.register("data.column", (options) => {
     // Re-register in G2's internal library so charts pick up the patched theme.
     // The registry key is 'theme.light', 'theme.classicDark', etc.
     const key = "theme." + name[0].toLowerCase() + name.slice(1);
-    // Wrap in structuredClone so deepMix() in G2 internals can't mutate
-    // the cached patched theme back to original values.
-    const cloneFn = (...args) => structuredClone(patched(...args));
+    // Previously, we used structuredClone on the theme object, but G2's Academy
+    // theme contains function values (like gridFilter) that can't be
+    // structurally cloned. To fix it, we wrote a recursive clone that copies
+    // functions by reference:
+    const safeClone = v => {
+      if (v === null || typeof v !== 'object') return v;
+      if (Array.isArray(v)) return v.map(safeClone);
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, safeClone(x)]));
+    };
+    const cloneFn = (...args) => safeClone(patched(...args));
     G2[name] = cloneFn;
     try { G2.register(key, cloneFn); } catch (_) {}
   }
