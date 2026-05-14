@@ -33,9 +33,6 @@ body {
   border-radius: 5px;
   padding: 1em;
   margin-bottom: 2em;
-  & > ul {
-    columns: 18em;
-  }
 }
 .chapter:not(.appendix) .main-number {
   &::before {
