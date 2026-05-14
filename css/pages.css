@@ -62,9 +62,6 @@
         font-size: 1.5em;
         margin-bottom: 1em;
       }
-      & > ul {
-        columns: 18em;
-      }
       a {
         display: flex;
         &::after {
