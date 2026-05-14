@@ -122,7 +122,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
       position: initial;
       float: none;
     }
-    .side { width: 100%; }
+    .side { width: 100%; max-height: none; }
     :is(main, .body) .side {
       padding: 0 2em;
       color: darkslategray;
