@@ -44,6 +44,7 @@
 
   function buildHtml(spec) {
     const cols = spec.columns || [],
+          colLabels = spec.col_labels || cols,
           align = spec.align || [],
           rows = spec.rows || [],
           stub = spec.stub,
@@ -56,7 +57,7 @@
           fIdx = matcher(fns, reg.idx),
           stubLabel = spec.stub_label || "",
           nCol = cols.length + (stub ? 1 : 0),
-          out = [`<table class="lt-table">`];
+          out = [`<table class="lt-table table">`];
     const alCls = i => { const a = align[i]; return a === "right" ? " class=\"al-r\"" : a === "center" ? " class=\"al-c\"" : ""; };
     const mark = (type, p) => { const i = fIdx(type, p); return i ? sup(i) : ""; };
 
@@ -88,7 +89,7 @@
     }
     out.push(`<tr>${stub ? `<th scope="col">${esc(stubLabel)}</th>` : ""}`);
     for (let i = 0; i < cols.length; i++)
-      out.push(`<th scope="col"${alCls(i)}>${esc(cols[i])}${mark("column_labels", { columns: [cols[i]] })}</th>`);
+      out.push(`<th scope="col"${alCls(i)}>${esc(colLabels[i])}${mark("column_labels", { columns: [cols[i]] })}</th>`);
     out.push(`</tr></thead>`);
 
     // body-footnote markers per (row,col), 1-based row.
