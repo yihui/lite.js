@@ -57,7 +57,7 @@
           fIdx = matcher(fns, reg.idx),
           stubLabel = spec.stub_label || "",
           nCol = cols.length + (stub ? 1 : 0),
-          out = [`<table class="lt-table table">`];
+          out = [`<table class="lt-table">`];
     const alCls = i => { const a = align[i]; return a === "right" ? " class=\"al-r\"" : a === "center" ? " class=\"al-c\"" : ""; };
     const mark = (type, p) => { const i = fIdx(type, p); return i ? sup(i) : ""; };
 
@@ -148,6 +148,8 @@
 
   const mount = (s, spec) => s.insertAdjacentHTML("afterend", buildHtml(spec));
 
-  (root.LT && root.LT.q || []).forEach(e => mount(e.s, e.d));
-  root.LT = { build(spec) { mount(document.currentScript, spec); }, buildHtml };
+  const q = root.LT && root.LT.q || [];
+  while (q.length) { const e = q.shift(); mount(e.s, e.d); }
+  root.LT = { build(spec) { mount(document.currentScript, spec); }, buildHtml,
+    q: { push(e) { mount(e.s, e.d); } } };
 })(window);
