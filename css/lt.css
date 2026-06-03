@@ -2,7 +2,7 @@ th, td{ padding: 5px; }
 .lt-table {
   --bg: 4px solid transparent;
 
-  border-collapse: separate;
+  border-collapse: collapse;
   caption-side: top;
   margin: 1em auto;
   border-spacing: 0;
@@ -24,7 +24,11 @@ th, td{ padding: 5px; }
       border-bottom: 2px solid #ddd;
     }
   }
-  thead th { border-bottom: 1px solid #888; border-left: var(--bg); border-right: var(--bg); }
+  thead th {
+    border-bottom: 1px solid #888;
+    &:not(:first-child) { border-left: var(--bg); }
+    &:not(:last-child) { border-right: var(--bg); }
+  }
   thead .lt-spanner-row {
     .lt-spanner       { border-bottom: 1px solid #bbb; text-align: center; }
     .lt-spanner-empty { border-bottom: none; }
