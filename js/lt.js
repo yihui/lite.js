@@ -182,7 +182,7 @@
     }
 
     // Stubhead
-    let stubLabel = rowLabelCol || "";
+    let stubLabel = "";
     for (const op of ops) {
       if (op.type === "stubhead") stubLabel = op.label;
     }
@@ -226,10 +226,19 @@
       styles.push(s);
     }
 
-    // Stub values from row_label column
-    const stub = rowLabelCol && data[rowLabelCol]
-      ? data[rowLabelCol].map(v => v == null ? "" : String(v))
+    // Stub: explicit row_label, or auto-promote first visible non-numeric column when groups exist
+    const autoStub = groups.length && !rowLabelCol && visible.length
+      ? visible.find(c => !data[c] || !data[c].length || typeof data[c].find(v => v != null) !== "number")
       : null;
+    const stubCol = rowLabelCol || autoStub || null;
+    const stub = stubCol && data[stubCol]
+      ? data[stubCol].map(v => v == null ? "" : String(v))
+      : null;
+    if (stubCol && !rowLabelCol) {
+      align.shift(); colLabels.shift(); visible = visible.slice(1);
+      if (colWidths) colWidths.shift();
+    }
+    if (stubCol && !stubLabel) stubLabel = stubCol;
 
     return {
       visible, align, colLabels, colWidths, indent, stubLabel, stub,
@@ -279,8 +288,12 @@
           fIdx = matcher(fns, reg.idx),
           nCol = cols.length + (stub ? 1 : 0),
           out = [`<table class="lt-table">`];
-    const alCls = i => { const a = align[i]; return a === "right" ? " class=\"al-r\"" : a === "center" ? " class=\"al-c\"" : ""; };
     const mark = (type, p) => { const i = fIdx(type, p); return i ? sup(i) : ""; };
+    const colCls = cols.map((_, i) => {
+      const c = (!stub && i === 0 && groups.length ? "lt-indent " : "") +
+        ({right: "al-r", center: "al-c"}[align[i]] || "");
+      return c ? ` class="${c.trimEnd()}"` : "";
+    });
 
     // Style map
     const styleMap = {};
@@ -332,9 +345,9 @@
       }
       out.push(`</tr>`);
     }
-    out.push(`<tr>${stub ? `<th scope="col">${esc(stubLabel)}</th>` : ""}`);
+    out.push(`<tr>${stub ? `<th scope="col"${groups.length ? ` class="lt-indent"` : ""}>${esc(stubLabel)}</th>` : ""}`);
     for (let i = 0; i < cols.length; i++)
-      out.push(`<th scope="col"${alCls(i)}>${esc(colLabels[i])}${mark("column_labels", { columns: [cols[i]] })}</th>`);
+      out.push(`<th scope="col"${colCls[i]}>${esc(colLabels[i])}${mark("column_labels", { columns: [cols[i]] })}</th>`);
     out.push(`</tr></thead>`);
 
     // Body footnote markers
@@ -358,14 +371,15 @@
       out.push(`<tr>`);
       if (stub) {
         const ind = indent[r - 1] || 0;
+        const cls = `lt-stub${groups.length ? " lt-indent" : ""}`;
         const style = ind ? ` style="padding-left:${ind + 1}em"` : "";
-        out.push(`<th scope="row" class="lt-stub"${style}>${esc(stub[r - 1])}</th>`);
+        out.push(`<th scope="row" class="${cls}"${style}>${esc(stub[r - 1])}</th>`);
       }
       for (let ci = 0; ci < cols.length; ci++) {
         const m = bodyMarks[`${r},${ci}`];
         const s = styleMap[`${r},${ci}`];
         const val = display[cols[ci]] ? display[cols[ci]][r - 1] : "";
-        out.push(`<td${alCls(ci)}${s ? ` style="${s}"` : ""}>${esc(val)}${m ? sup(m) : ""}</td>`);
+        out.push(`<td${colCls[ci]}${s ? ` style="${s}"` : ""}>${esc(val)}${m ? sup(m) : ""}</td>`);
       }
       out.push(`</tr>`);
     };
