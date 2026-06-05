@@ -20,7 +20,8 @@ th, td{ padding: 5px; }
   tbody {
     :not(:last-child) :is(td, th) { border-bottom: 1px   solid #ddd; }
     .lt-row-group :is(td, th)     { border-bottom: 1.5px solid #ddd; }
-    .lt-stub, .lt-row-group th { text-align: left; }
+    .lt-stub, .lt-row-group { text-align: left; }
+    .lt-row-group { vertical-align: top; }
   }
   thead th {
     border-bottom: 1px solid #888;
@@ -40,7 +41,7 @@ th, td{ padding: 5px; }
     .lt-source-note td { font-style: italic; }
   }
 
-  .al-r { text-align: right; }
+  .al-r { text-align: right; white-space: nowrap; }
   .al-c { text-align: center; }
 
   .lt-fnref {
