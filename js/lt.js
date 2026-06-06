@@ -179,10 +179,12 @@
           nRow = colNames.length ? data[colNames[0]].length : 0;
 
     // row_group: array → rowspan mode; string → separator-row mode
+    let rowGroupSep = typeof spec.row_group === "string";
     const rowGroupCols = Array.isArray(spec.row_group) ? spec.row_group
           : (spec.row_group ? [spec.row_group] : []),
-          rowGroupSep = typeof spec.row_group === "string",
           rowLabelCol = spec.row_label || null;
+    if (!rowGroupSep && rowGroupCols.length === 1 &&
+        data[rowGroupCols[0]]?.some(v => (v + "").length > 20)) rowGroupSep = true;
 
     // Hidden columns: row_group, row_label, merge sources
     const hidden = new Set();
@@ -332,10 +334,35 @@
     }
     if (stubCol && !stubLabel) stubLabel = stubCol;
 
+    // Auto-spanners: split column names on separator, group contiguous prefixes
+    let spanners = spec.spanners || [];
+    if (spec.auto_span) {
+      const sep = typeof spec.auto_span === "string" ? new RegExp(spec.auto_span) : /[._]/;
+      spanners = [...spanners];
+      for (let i = 0; i < visible.length;) {
+        const m = visible[i].match(sep);
+        if (!m) { i++; continue; }
+        const prefix = visible[i].slice(0, m.index);
+        let j = i + 1;
+        while (j < visible.length) {
+          const m2 = visible[j].match(sep);
+          if (!m2 || visible[j].slice(0, m2.index) !== prefix) break;
+          j++;
+        }
+        if (j - i >= 2) {
+          spanners.push({ label: prefix, columns: visible.slice(i, j) });
+          for (let k = i; k < j; k++) {
+            const mk = colLabels[k].match(sep);
+            if (mk) colLabels[k] = colLabels[k].slice(mk.index + mk[0].length);
+          }
+        }
+        i = j;
+      }
+    }
+
     return {
       visible, align, colLabels, colWidths, indent, stubLabel, stub,
-      groups, rowSpans, styles,
-      spanners: spec.spanners || [],
+      groups, rowSpans, styles, spanners,
       footnotes: spec.footnotes || [],
       notes: spec.notes || [],
       header: spec.header || {},
