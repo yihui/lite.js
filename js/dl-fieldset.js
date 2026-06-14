@@ -9,5 +9,5 @@ document.querySelectorAll('dl').forEach(dl => {
   const legend = document.createElement('legend');
   legend.append(...dt.childNodes);
   fieldset.append(legend, ...dd.childNodes);
-  dl.parentNode.replaceChild(fieldset, dl);
+  dl.after(fieldset); dl.remove();
 });
