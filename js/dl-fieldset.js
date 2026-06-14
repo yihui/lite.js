@@ -5,7 +5,14 @@ document.querySelectorAll('dl').forEach(dl => {
   if (dl.childElementCount !== 2) return;
   const dt = dl.children[0], dd = dl.children[1];
   if (dt.tagName !== 'DT' || dd.tagName !== 'DD') return;
-  dt.outerHTML = dt.outerHTML.replace(/^<dt(>[\s\S]*<\/)dt>$/, '<legend$1legend>');
-  dd.outerHTML = dd.innerHTML;
-  dl.outerHTML = dl.outerHTML.replace(/^<dl(>[\s\S]*<\/)dl>$/, '<fieldset$1fieldset>');
+  const fieldset = document.createElement('fieldset');
+  const legend = document.createElement('legend');
+  while (dt.firstChild) {
+    legend.appendChild(dt.firstChild);
+  }
+  while (dd.firstChild) {
+    fieldset.appendChild(dd.firstChild);
+  }
+  fieldset.insertBefore(legend, fieldset.firstChild);
+  dl.parentNode.replaceChild(fieldset, dl);
 });
