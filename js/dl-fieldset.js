@@ -7,12 +7,8 @@ document.querySelectorAll('dl').forEach(dl => {
   if (dt.tagName !== 'DT' || dd.tagName !== 'DD') return;
   const fieldset = document.createElement('fieldset');
   const legend = document.createElement('legend');
-  while (dt.firstChild) {
-    legend.appendChild(dt.firstChild);
-  }
-  while (dd.firstChild) {
-    fieldset.appendChild(dd.firstChild);
-  }
+  legend.append(...dt.childNodes);
+  fieldset.append(...dd.childNodes);
   fieldset.insertBefore(legend, fieldset.firstChild);
   dl.parentNode.replaceChild(fieldset, dl);
 });
