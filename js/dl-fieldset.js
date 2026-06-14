@@ -8,7 +8,6 @@ document.querySelectorAll('dl').forEach(dl => {
   const fieldset = document.createElement('fieldset');
   const legend = document.createElement('legend');
   legend.append(...dt.childNodes);
-  fieldset.append(...dd.childNodes);
-  fieldset.insertBefore(legend, fieldset.firstChild);
+  fieldset.append(legend, ...dd.childNodes);
   dl.parentNode.replaceChild(fieldset, dl);
 });
