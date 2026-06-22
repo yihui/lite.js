@@ -56,7 +56,7 @@
 
   // --- Auto-format numeric columns ---
   function autoFmt(spec, display, nRow) {
-    if (spec.auto_fmt === false) return;
+    if (spec.auto_format === false) return;
     const data = spec.data || {}, ops = spec.ops || [],
           colNames = Object.keys(data);
 
@@ -199,7 +199,8 @@
     let rowGroupSep = typeof spec.row_group === "string";
     const rowGroupCols = Array.isArray(spec.row_group) ? spec.row_group
           : (spec.row_group ? [spec.row_group] : []);
-    if (!rowGroupSep && rowGroupCols.length === 1 &&
+    if (!rowGroupSep && rowGroupCols.length === 1 && spec.auto_sep !== false &&
+        !numCol(data[rowGroupCols[0]]) &&
         data[rowGroupCols[0]]?.some(v => (v + "").length > 20)) rowGroupSep = true;
 
     // Hidden columns: row_group, merge sources
@@ -234,7 +235,8 @@
     onOp("align", op => { for (const c of (op.columns || [])) setByCol(align, c, op.align); });
 
     // Column labels
-    const colLabels = [...visible];
+    const autoLbl = s => spec.auto_label === false ? s : s.replace(/[._]/g, " ");
+    const colLabels = visible.map(autoLbl);
     onOp("label", op => {
       for (const [c, lbl] of Object.entries(op.labels || {})) setByCol(colLabels, c, lbl);
     });
@@ -317,8 +319,8 @@
         if (j - i >= 2) {
           spanners.push({ label: prefix, columns: visible.slice(i, j) });
           for (let k = i; k < j; k++) {
-            const mk = colLabels[k].match(sep);
-            if (mk) colLabels[k] = colLabels[k].slice(mk.index + mk[0].length);
+            const mk = visible[k].match(sep);
+            if (mk) colLabels[k] = autoLbl(visible[k].slice(mk.index + mk[0].length));
           }
         }
         i = j;
