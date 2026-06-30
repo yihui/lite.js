@@ -1,0 +1,103 @@
+/* Clean theme for litedown slides (based on github.com/grantmcdermott/litedown-clean) */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap');
+:root {
+  --clean-jet: #131516;
+  --clean-accent: #107895;
+  --clean-accent2: #9a2515;
+  --right-arrow: "\2192";
+}
+body {
+  font-family: "Roboto", sans-serif;
+  color: var(--clean-jet);
+
+  a { color: var(--clean-accent); line-height: 1.5em; }
+  p { margin-top: 1.25em; }
+
+  .slide, .frontmatter {
+    padding-left: 3em;
+    padding-right: 3em;
+    max-width: none;
+  }
+
+  .frontmatter {
+    text-align: left;
+    .title h1 {
+      color: var(--clean-jet);
+      margin-bottom: 0.1em;
+    }
+    .subtitle h2 {
+      color: var(--clean-accent);
+      font-style: italic;
+      margin-top: 0;
+    }
+    .author h2 {
+      color: var(--clean-jet);
+      margin-top: 1em;
+    }
+    .date h3 {
+      color: #666;
+      font-style: italic;
+      margin-top: 0.5em;
+    }
+  }
+
+  h1, h2, h3, h4 { border-bottom: none; font-weight: lighter; }
+  h1 { color: var(--clean-jet); }
+  h2 { color: var(--clean-jet); margin-bottom: 0.1em; }
+  h3 {
+    color: var(--clean-accent);
+    font-style: italic;
+    margin-top: 0.25em;
+  }
+  h4 {
+    color: var(--clean-accent2);
+    margin-top: 1.25em;
+  }
+
+  .alert { color: var(--clean-accent2); }
+  .fg { color: var(--col, var(--clean-jet)); }
+  .bg {
+    background-color: var(--col, #fff);
+    padding: 0.1em;
+    border-radius: 5px;
+    display: inline-block;
+  }
+
+  ul {
+    padding-left: 1.5em;
+    li::marker { color: color-mix(in srgb, var(--clean-accent) 70%, white); }
+  }
+  ul ul {
+    list-style: none;
+    li::before {
+      content: var(--right-arrow);
+      color: color-mix(in srgb, var(--clean-accent) 60%, white);
+      display: inline-block;
+      width: 1em;
+      margin-left: -1em;
+      margin-right: 0.5em;
+    }
+  }
+  ol {
+    padding-left: 16px;
+    li::marker { color: var(--clean-accent); }
+  }
+
+  .inverse { background-color: var(--clean-jet); color: white; }
+
+  ::selection { background-color: #26351c; }
+
+  .columns3070, .columns7030, .columns4060, .columns6040, .columns5050 {
+    display: flex;
+    gap: min(4vw, 1.5em);
+  }
+  .columns5050 > div { width: 50%; }
+  .columns3070 > div:first-child { width: 30%; }
+  .columns3070 > div:not(:first-child) { width: 70%; }
+  .columns7030 > div:first-child { width: 70%; }
+  .columns7030 > div:not(:first-child) { width: 30%; }
+  .columns4060 > div:first-child { width: 40%; }
+  .columns4060 > div:not(:first-child) { width: 60%; }
+  .columns6040 > div:first-child { width: 60%; }
+  .columns6040 > div:not(:first-child) { width: 40%; }
+}
