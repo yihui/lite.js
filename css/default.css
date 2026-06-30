@@ -92,7 +92,7 @@ section.footnotes {
   opacity: 0.6;
 }
 @media (prefers-color-scheme: dark) {
-  html, img, video, iframe, svg, canvas { filter: invert(1); }
+  html, img, video, iframe { filter: invert(1); }
   body { background: #ededed; }
 }
 @media print {
