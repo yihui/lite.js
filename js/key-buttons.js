@@ -9,7 +9,7 @@
   const k1 = 'Esc|Tab|PageUp|PageDown|Space|Delete|Home|End|PrtScr?|PrintScreen|' +
               Array(12).fill().map((v, i) => 'F' + (i + 1)).concat(a1).join('|'),
         k2 = 'Ctrl|Control|Shift|Alt|Cmd|Command|fn',
-        k3 = '[a-zA-Z0-9]|Click',
+        k3 = '[a-zA-Z0-9]|Double-Click|Click',
         r1 = new RegExp(`^(${k1}|${k2})$`),
         r2 = new RegExp(`^(${k2}) [/+] `),
         r3 = new RegExp(`^(${k1}|${k2}|${k3})( [/+] )(.*)`);
