@@ -1,0 +1,57 @@
+th, td{ padding: 5px; }
+.lt-table {
+  --bg: 4px solid transparent;
+
+  border-collapse: separate;
+  caption-side: top;
+  margin: 1em auto;
+  border-spacing: 0;
+  border-top: 1.5px solid #888;
+  border-bottom: 1.5px solid #888;
+
+  caption {
+    padding: .5em;
+    text-align: center;
+    .lt-title    { font-size: 1.2em; }
+    .lt-subtitle { font-size: 0.9em; }
+  }
+
+  th { font-weight: normal; }
+  tbody {
+    :not(:last-child) :is(td, th) { border-bottom: 1px   solid #ddd; }
+    .lt-row-group :is(td, th)     { border-bottom: 1.5px solid #ddd; }
+    .lt-row-group { text-align: left; }
+    .lt-row-group { vertical-align: top; }
+  }
+  thead th {
+    border-bottom: 1px solid #888;
+    &:not(:first-child) { border-left: var(--bg); }
+    &:not(:last-child) { border-right: var(--bg); }
+  }
+  .lt-indent { padding-left: 1em; }
+  .lt-spanner-row {
+    .lt-spanner       { border-bottom: 1px solid #bbb; text-align: center; }
+    .lt-spanner-empty { border-bottom: none; }
+  }
+
+  .lt-footer {
+    font-size: 0.85em;
+    .lt-footnote:first-child td { border-top: 1px solid #aaa; }
+    .lt-source-note:first-child td { border-top: 1px dashed #aaa; }
+    .lt-source-note td { font-style: italic; }
+  }
+
+  .al-r { text-align: right; }
+  .al-c { text-align: center; }
+
+  .lt-fnref {
+    color: #06c;
+    &::before { content: " ["; }
+    &::after  { content: "]"; }
+  }
+}
+.lt-raw [title]::after {
+  content: " (" attr(title) ")";
+  background: lightyellow;
+  font-size: 0.85em;
+}
