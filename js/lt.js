@@ -12,14 +12,20 @@
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const sup = i => `<sup class="lt-fnref">${i}</sup>`;
   // Stringify, mapping null/undefined to "" (0 and false stringify normally).
-  const str = v => String(v ?? "");
+  // ±Infinity render as ∞/-∞ (ASCII minus, as raw values); formatted columns get
+  // the typographic minus via fmtNumber.
+  const str = v => v === Infinity ? "∞" : v === -Infinity ? "-∞" : String(v ?? "");
 
   // --- Number formatting ---
-  const isNum = v => typeof v === "number" && !isNaN(v);
+  const isNum = v => typeof v === "number" && isFinite(v);
+  // Like isNum but also accepts ±Infinity (which fmtNumber renders as ∞/−∞).
+  const isNumInf = v => isNum(v) || Math.abs(v) === Infinity;
   // A column is "numeric" if its first non-null value is a number.
   const numCol = col => col?.length && typeof col.find(v => v != null) === "number";
 
   function fmtNumber(v, decimals, bigMark) {
+    if (v === Infinity) return "∞";
+    if (v === -Infinity) return "−∞";
     if (!isNum(v)) return null;
     let s = decimals != null ? v.toFixed(decimals) : String(v);
     if (/^-0(\.0+)?$/.test(s)) s = s.slice(1);
@@ -105,7 +111,7 @@
 
       for (let i = 0; i < nRow; i++) {
         const v = col[i];
-        if (!isNum(v)) continue;
+        if (!isNumInf(v)) continue;
         const s = fmtNumber(pct ? v * 100 : v, n, " ");
         if (s != null) display[c][i] = s + (pct ? "%" : "");
       }
@@ -140,7 +146,7 @@
       switch (op.type) {
         case "fmt_number":
           eachCell(cols, (c, i, raw) => {
-            if (!isNum(raw)) return;
+            if (!isNumInf(raw)) return;
             const v = op.percent === true ? raw * 100 : raw,
                   psfx = op.percent ? "%" : "",
                   f = fmtNumber(v, op.decimals, op.big_mark ?? ""),
@@ -530,12 +536,14 @@
     }
 
     out.push(`</table>`);
-    return out.join("");
+    // Wrap in a div so a wide table can scroll horizontally (`overflow-x`)
+    // instead of overflowing the page.
+    return `<div class="lt-wrap">${out.join("")}</div>`;
   }
 
   const mount = (s, spec) => {
     s.insertAdjacentHTML("afterend", buildHtml(spec));
-    const tbl = s.nextElementSibling,
+    const tbl = s.nextElementSibling.querySelector("table"),
           raw = (e, el) => e.altKey && el.classList.toggle("lt-raw");
     tbl.onclick = e => e.detail === 1 && raw(e, tbl);
     tbl.ondblclick = e => raw(e, tbl.ownerDocument.documentElement);
