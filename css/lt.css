@@ -21,8 +21,7 @@ th, td{ padding: 5px; }
   tbody {
     :not(:last-child) :is(td, th) { border-bottom: 1px   solid #ddd; }
     .lt-row-group :is(td, th)     { border-bottom: 1.5px solid #ddd; }
-    .lt-row-group { text-align: left; }
-    .lt-row-group { vertical-align: top; }
+    .lt-row-group { text-align: left; vertical-align: top; }
   }
   thead th {
     border-bottom: 1px solid #888;
@@ -47,7 +46,7 @@ th, td{ padding: 5px; }
 
   .lt-fnref {
     color: #06c;
-    &::before { content: " ["; }
+    &::before { content: "\00a0["; }
     &::after  { content: "]"; }
   }
 }
