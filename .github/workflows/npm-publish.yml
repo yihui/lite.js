@@ -22,5 +22,5 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: sudo npm install -g npm@latest
       - run: ./build.sh
-      - run: ./purge.sh || true
       - run: npm publish
+      - run: ./purge.sh || true

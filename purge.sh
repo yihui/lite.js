@@ -11,3 +11,6 @@ for i in $(git diff --name-only $tag1 $tag2 | grep -E "[.](css|js)$"); do
     curl "${JSD_URL}/$(echo "$i" | sed 's/\(\.[^.]*$\)/.min\1/')"
   fi
 done
+
+# visit the latest index page and make sure it's accessible
+curl -sSfL "https://cdn.jsdelivr.net/npm/@xiee/utils@${tag2}/" | grep ${tag2#v}
