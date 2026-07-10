@@ -2,6 +2,7 @@
 
 set -e
 
+npm config set allow-scripts=lightningcss-cli --location=user
 npm install lightningcss-cli terser -g
 
 cd js
