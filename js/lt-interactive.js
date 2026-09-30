@@ -49,8 +49,15 @@
     const v = String(term ?? "").trim();
     if (v === "") return null;
     if (/(^|[^\w$])x([^\w$]|$)/.test(v)) {
+      // Guard against code injection: only compile expressions built from a
+      // safe character set (comparisons, arithmetic, parens, string/number
+      // literals and `x`) — no other identifiers, so there is no way to reach
+      // globals like `alert`, `Function` or `constructor` to run injected code.
+      const safe = v.replace(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g, '""');
       let fn;
-      try { fn = new Function("x", `return (${v});`); } catch (e) {}
+      if (/^[\sx0-9.+\-*/%<>=!&|()"]*$/.test(safe)) {
+        try { fn = new Function("x", `return (${v});`); } catch (e) {}
+      }
       if (fn) {
         const neg = /^\s*!|!=/.test(v), test = raw => {
           if (raw == null) return neg;
