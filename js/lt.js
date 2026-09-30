@@ -1,5 +1,6 @@
 /* lt.js — build a semantic <table> from a JSON spec.
- * Call LT.build(spec) from an inline <script> to render a table in place.
+ * Call LT.build(spec) from an inline <script> to render a table in place, or
+ * LT.render(el, spec) to render one into a container at any later time.
  * One runtime per page renders any number of tables.
  */
 (root => {
@@ -577,7 +578,11 @@
       out.push(`</tr>`);
     };
 
-    // <tbody>
+    // <tbody>. An optional `spec._viewRows` (1-based original row indices) sets
+    // the order/subset of rows for the flat case — the seam the interactive
+    // plugin uses to sort/filter without re-implementing row rendering. Absent
+    // ⇒ all rows in original order (the default). Row-indexed styles/footnotes/
+    // indent stay correct because they remain keyed to the original indices.
     out.push(`<tbody>`);
     if (groups.length) {
       const seen = {};
@@ -586,6 +591,8 @@
         for (const r of g.rows) { seen[r] = 1; pushRow(r); }
       }
       for (let r = 1; r <= nRow; r++) if (!seen[r]) pushRow(r);
+    } else if (spec._viewRows) {
+      for (const r of spec._viewRows) pushRow(r);
     } else {
       for (let r = 1; r <= nRow; r++) pushRow(r);
     }
@@ -601,20 +608,57 @@
     }
 
     out.push(`</table>`);
+    // Expose the resolved visible column order (after hide/move) so plugins can
+    // sort/filter without re-deriving it. Set as a side effect, never read by
+    // core; harmless for the static/Node render path.
+    spec._cols = cols;
     // Wrap in a div so a wide table can scroll horizontally (`overflow-x`)
     // instead of overflowing the page.
     return `<div class="lt-wrap">${out.join("")}</div>`;
   }
 
-  const mount = (s, spec) => {
-    s.insertAdjacentHTML("afterend", buildHtml(spec));
-    const tbl = s.nextElementSibling.querySelector("table"),
-          raw = (e, el) => e.altKey && el.classList.toggle("lt-raw");
+  // Plugin seam (see lt-interactive.js): a plugin attaches its handle under
+  // LT.plugins and pushes a callback onto LT.onMount, which core calls with
+  // each table element and its spec right after the table is mounted.
+  const plugins = root.LT?.plugins || {}, onMount = root.LT?.onMount || [];
+
+  // Alt-click toggles raw values in this table; alt-dblclick toggles page-wide.
+  const wireRaw = tbl => {
+    const raw = (e, el) => e.altKey && el.classList.toggle("lt-raw");
     tbl.onclick = e => e.detail === 1 && raw(e, tbl);
     tbl.ondblclick = e => raw(e, tbl.ownerDocument.documentElement);
+  };
+
+  // Finish a freshly inserted table: remember its spec, wire the raw-value
+  // toggle, and let the plugins enhance it. Returns the table element.
+  const ready = (tbl, spec) => {
+    // Stash the spec so a plugin loaded *after* this table mounted (the usual
+    // case — core drains the queue before a plugin file runs) can still find
+    // and enhance it by scanning `.lt-table`.
+    tbl._ltSpec = spec;
+    wireRaw(tbl);
+    onMount.forEach(f => f(tbl, spec));
+    return tbl;
+  };
+
+  const mount = (s, spec) => {
+    s.insertAdjacentHTML("afterend", buildHtml(spec));
+    ready(s.nextElementSibling.querySelector("table"), spec);
+  };
+
+  // Render a spec into `el` (replacing its content) at any time, e.g. long
+  // after the page loaded, for a table built on demand. Unlike build(), it
+  // needs no inline <script> to anchor to, and the caller may hold on to the
+  // returned table element.
+  const render = (el, spec) => {
+    el.innerHTML = buildHtml(spec);
+    return ready(el.querySelector("table"), spec);
   };
   // q.push renders immediately; replay any entries queued before we loaded.
   const q = { push: e => mount(e.s, e.d) };
   (root.LT?.q || []).forEach(q.push);
-  root.LT = { build: spec => mount(document.currentScript, spec), buildHtml, q };
+  root.LT = {
+    build: spec => mount(document.currentScript, spec),
+    render, buildHtml, plugins, onMount, q,
+  };
 })(window);
