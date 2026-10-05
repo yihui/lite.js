@@ -352,8 +352,12 @@
       const col = cols[ci];
       if (col == null) return;
       th.classList.add("lti-sortable");
-      marks[col] = { th, ind: elem(doc, "span", { className: "lti-sort" }, th) };
-      th.onclick = e => { cycle(state, col, e.shiftKey); paint(); refresh(); };
+      // sort on the label only, not the whole cell, so the resize grip (a <th>
+      // child outside the label) stays unclickable for sorting
+      const lab = elem(doc, "span", { className: "lti-label" }, th);
+      while (th.firstChild !== lab) lab.append(th.firstChild);
+      marks[col] = { th, ind: elem(doc, "span", { className: "lti-sort" }, lab) };
+      lab.onclick = e => { cycle(state, col, e.shiftKey); paint(); refresh(); };
     });
     paint();  // reflect any initial sort carried on the spec
   }
@@ -497,16 +501,19 @@
   // that dragging one edge moves it alone. A double-click fits the column to its
   // content.
   function addResize(el, layout) {
-    const doc = el.ownerDocument,
+    const doc = el.ownerDocument, win = doc.defaultView,
           { ths, cs, freeze, natural, setWidth } = layout;
+    // smallest width that still shows the whole label, so the grip can't be
+    // dragged over the label text (never below MIN_COL)
+    const labelMin = (th, grip) => {
+      const r = th.getBoundingClientRect(),
+            ind = $(th, ".lti-sort"),
+            end = ind ? ind.getBoundingClientRect().right : r.right,
+            pad = parseFloat(win.getComputedStyle(th).paddingRight) || 0;
+      return Math.max(MIN_COL, end - r.left + pad + grip.getBoundingClientRect().width);
+    };
     ths.forEach((th, i) => {
       const grip = elem(doc, "div", { className: "lti-resizer" }, th);
-      // the grip sits in a header cell that may sort on click: swallow the click
-      // that follows a resize (captured on the document, since dragging past the
-      // column's min width leaves the pointer off the grip, so the click lands on
-      // the <th> itself and would otherwise sort the column)
-      const noSort = () => on(doc, "click", e => e.stopPropagation(),
-        { capture: true, once: true });
       grip.ondblclick = e => {
         e.stopPropagation();
         freeze();
@@ -515,10 +522,11 @@
       grip.onpointerdown = e => {
         e.stopPropagation();
         freeze();
-        const x0 = e.clientX, w0 = parseFloat(cs[i].style.width);
+        const x0 = e.clientX, w0 = parseFloat(cs[i].style.width),
+              min = labelMin(th, grip);
         el.classList.add("lti-resizing");
-        drag(e, ev => setWidth(i, w0 + ev.clientX - x0),
-          () => { el.classList.remove("lti-resizing"); noSort(); });
+        drag(e, ev => setWidth(i, w0 + ev.clientX - x0, min),
+          () => el.classList.remove("lti-resizing"));
       };
     });
   }
