@@ -26,6 +26,12 @@
   // explicit `{col, dir}` object. Normalizes either to `{col, dir}`.
   const parseKey = k => typeof k !== "string" ? { ...k } :
     k[0] === "-" ? { col: k.slice(1), dir: "desc" } : { col: k, dir: "asc" };
+  // Compare two non-null values: numeric subtraction for a numeric column, else
+  // a locale-aware string compare (the collator built once, lazily reused).
+  const cmpVals = (x, y, num) => {
+    coll ||= new Intl.Collator();
+    return num ? x - y : coll.compare(String(x), String(y));
+  };
 
   // --- Small DOM helpers, so building the controls stays terse ---
   const $ = (el, sel) => el.querySelector(sel),
@@ -146,8 +152,7 @@
         for (const { col, num, dir } of keys) {
           const x = col[a - 1], y = col[b - 1], xn = x == null, yn = y == null;
           if (xn || yn) { if (xn !== yn) return xn ? 1 : -1; continue; }
-          coll ||= new Intl.Collator();
-          const c = num ? x - y : coll.compare(String(x), String(y));
+          const c = cmpVals(x, y, num);
           if (c) return dir * c;
         }
         return 0;
@@ -216,8 +221,7 @@
           order.sort((a, b) => {
             const an = a.v == null, bn = b.v == null;
             if (an || bn) return an === bn ? 0 : an ? 1 : -1;
-            coll ||= new Intl.Collator();
-            return d * (num ? a.v - b.v : coll.compare(String(a.v), String(b.v)));
+            return d * cmpVals(a.v, b.v, num);
           });
         }
         return order.flatMap(b => partition(b.rows, depth + 1));
@@ -369,9 +373,10 @@
     const flt = opts.filter,
           barCols = flt?.cols ?
             Object.keys(flt.cols).filter(c => flt.cols[c] !== true && !cols.includes(c)) : [];
-    // the table-wide controls share one full-width head row: the column menu
-    // (if any) at its start, the search box, then any head-bar filter chips
-    const headBar = (opts.search !== false || opts.hide || barCols.length) ?
+    // the table-wide controls share one full-width head row, laid out left to
+    // right: an icon group (the column menu and the download button), then the
+    // head-bar filter chips, then the search box (which absorbs the free space)
+    const headBar = (opts.search !== false || opts.hide || barCols.length || opts.download) ?
       elem(el.ownerDocument, "div", { className: "lti-bar" },
         fullRow(el.tHead || el.createTHead(), "lti-head", cols.length, 0)) : null;
     // the data-column header labels (skipping any leading group cell), read
@@ -387,10 +392,20 @@
       addFilter(hrow, cols, flt, spec.data, state, refresh);
     const layout = opts.resize ? fixedLayout(el, hrow, cols.length, nGroup) : null;
     if (opts.resize) addResize(el, layout);
+    // the icon buttons sit together in a group that keeps its natural width;
+    // append them (menu first, download second) before the chips and search so
+    // the DOM order is the visual order
+    const icons = (opts.hide || opts.download) ?
+      elem(el.ownerDocument, "div", { className: "lti-icons" }, headBar) : null;
     if (opts.hide)
-      addColumnToggle(headBar, el, hrow, cols, labels, opts.hide, layout, postSwap);
+      addColumnToggle(icons, el, hrow, cols, labels, opts.hide, layout, postSwap);
+    if (opts.download) addDownload(icons, el, spec, cols, labels, opts.download);
+    // the chips share a group so the bar has three parts (icons, chips, search)
+    // with a wider gap between them than within each
+    if (barCols.length) addControlFilters(
+      elem(el.ownerDocument, "div", { className: "lti-chips" }, headBar),
+      barCols, flt.cols, spec.data, state, refresh);
     if (opts.search !== false) addSearch(headBar, el, state, refresh);
-    if (barCols.length) addControlFilters(headBar, barCols, flt.cols, spec.data, state, refresh);
     // row detail re-renders through the same seam: toggling a row only changes
     // which rows carry a detail block, so a plain re-render (no new view) is
     // enough
@@ -440,6 +455,40 @@
   function addSearch(cell, el, state, refresh) {
     const input = cell.appendChild(searchInput(el.ownerDocument, "Search"));
     onType(input, v => { state.term = v; refresh(); });
+  }
+
+  // Escape one value for a CSV field: wrap in quotes (doubling any inside) only
+  // when it holds a comma, quote, or newline, so plain values stay bare.
+  function csvField(v) {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  // A button that downloads the table's current view as a CSV file. The header
+  // row is the column labels; each body row is a view row (every row the filters
+  // and search keep, in sort order, across all pages — `el._lt.view()` gives the
+  // 1-based original indices) rendered with the displayed cell text from
+  // `spec._display`. `name` is the file name (`true` = a default); group columns
+  // (null in `cols`) are skipped. No library, no network: a Blob and an <a>.
+  function addDownload(cell, el, spec, cols, labels, name) {
+    const doc = el.ownerDocument,
+          file = (typeof name === "string" && name ? name : "table")
+            .replace(/(\.csv)?$/i, ".csv"),
+          keep = cols.map((c, i) => i).filter(i => cols[i] != null),
+          btn = elem(doc, "button", {
+            type: "button", className: "lti-download", title: "Download CSV",
+            "aria-label": "Download table as CSV"
+          }, cell);
+    btn.onclick = () => {
+      const disp = spec._display || {},
+            lines = [keep.map(i => csvField(labels[i] ?? cols[i])).join(",")];
+      for (const r of el._lt.view())
+        lines.push(keep.map(i => csvField((disp[cols[i]] || [])[r - 1])).join(","));
+      const url = URL.createObjectURL(
+        new Blob([lines.join("\n")], { type: "text/csv" }));
+      elem(doc, "a", { href: url, download: file }).click();
+      URL.revokeObjectURL(url);
+    };
   }
 
   // Advance one column through asc → desc → unsorted, updating `state.sort` (an
@@ -626,7 +675,7 @@
       const old = parseFloat(cs[i].style.width);
       cs[i].style.width = Math.max(w, min) + "px";
       el.style.width =
-        parseFloat(el.style.width) + parseFloat(cs[i].style.width) - old + "px";
+        `${parseFloat(el.style.width) + parseFloat(cs[i].style.width) - old}px`;
     };
     // `dataCs` drops the leading group <col>s, so a data-column consumer (the
     // column-hide menu) indexes it by data-column position
@@ -809,7 +858,7 @@
               t.setAttribute("aria-valuenow", val[i]);
             });
             fill.style.left = pct(val[0]) + "%";
-            fill.style.right = 100 - pct(val[1]) + "%";
+            fill.style.right = `${100 - pct(val[1])}%`;
           },
           setOne = (i, v) => {
             val[i] = snap(v);

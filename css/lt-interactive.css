@@ -17,16 +17,13 @@
   .lti-search {
     width: 100%;
     padding: .5em 0 .5em 1.6em;
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="gray" stroke-width="2"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l5 5"/></svg>');
-    background-repeat: no-repeat;
-    background-position: 0.4em center;
-    background-size: 1em;
-  }
-  /* on focus the magnifier goes away, leaving a small left pad so the caret
-   * sits just inside the edge rather than behind the icon's wider gutter */
-  .lti-search:focus {
-    padding-left: .5em;
-    background-image: none;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="gray" stroke-width="2"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l5 5"/></svg>') 0.4em center / 1em no-repeat;
+    /* on focus the magnifier goes away, leaving a small left pad so the caret
+     * sits just inside the edge rather than behind the icon's wider gutter */
+    &:focus {
+      padding-left: .5em;
+      background-image: none;
+    }
   }
 
   /* the click target is the label span, not the whole cell (so the resize grip
@@ -73,10 +70,10 @@
     cursor: col-resize;
     user-select: none;
     touch-action: none;
-  }
-  .lti-resizer:hover {
-    background: currentColor;
-    opacity: 0.3;
+    &:hover {
+      background: currentColor;
+      opacity: 0.3;
+    }
   }
   /* while dragging, the pointer keeps the resize cursor anywhere on the table,
    * and the drag selects no text */
@@ -96,23 +93,26 @@
     }
   }
 
-  /* the column menu and search box share this flex bar: alone, the search fills
-   * it; with the menu button, they sit at opposite ends */
+  /* the control bar lays its parts out left to right: an icon group, the filter
+   * chips, then the search box. Only the search box grows, so all the free space
+   * lands in it (pushing it to the right edge); the icons and chips keep their
+   * natural width. The search still fills the bar when it is the only control. */
   .lti-bar {
     display: flex;
     align-items: center;
-    gap: 0.3em;
-    .lti-search {
-      flex: 1;
+    /* a wide gap between the three parts (icons, chips, search) ... */
+    gap: 1.2em;
+    .lti-icons, .lti-chips {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      /* ... but a tight gap between the buttons / chips within a part */
+      gap: 0.3em;
     }
-    &:has(.lti-cols) {
-      justify-content: space-between;
-      /* width:auto overrides the base 100%, so the box takes its natural width
-       * and the free space falls between it and the menu button */
-      .lti-search {
-        flex: 0 1 auto;
-        width: auto;
-      }
+    /* direct child only: a chip's popover holds its own `.lti-search` box */
+    & > .lti-search {
+      flex: 1 1 8em;
+      min-width: 6em;
     }
   }
 
@@ -140,6 +140,15 @@
         cursor: pointer;
       }
     }
+  }
+
+  /* the CSV download button: an icon button, same footprint as the eye button */
+  .lti-download {
+    border: none;
+    padding: 0;
+    width: 1.2em;
+    height: 1.2em;
+    background: center / contain no-repeat url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="gray" stroke-width="1.5"><path d="M8 1v9m0 0L4.5 6.5M8 10l3.5-3.5"/><path d="M2 11v3h12v-3"/></svg>');
   }
 
   /* typed filter chips sit after the search box in the head bar; each is a label,
