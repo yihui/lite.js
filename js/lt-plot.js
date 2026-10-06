@@ -31,7 +31,10 @@
     };
     const d = niceNum(niceNum(hi - lo, false) / (n - 1), true),
           dec = Math.max(0, -Math.floor(Math.log10(d))), ticks = [];
-    for (let v = Math.ceil(lo / d) * d; v <= hi + d / 2; v += d)
+    // stay within [lo, hi]: a tick past hi would be clamped onto the right edge
+    // (see ebX), bunching the last gap. The small tolerance only absorbs the
+    // float drift of landing exactly on hi.
+    for (let v = Math.ceil(lo / d) * d; v <= hi + d * 1e-9; v += d)
       ticks.push(+v.toFixed(dec));
     return ticks;
   }
@@ -71,7 +74,7 @@
     const num = k => { const v = data[k]?.[r - 1]; return u.isNum(v) ? v : null; };
     const H = eb.height, n = eb.cols.length, x = v => ebX(eb, v),
           yOf = i => stackY(i, n, H),  // one track per series, stacked
-          cap = Math.min(4, (H / n - 1) / 2);  // half-height of the end caps
+          cap = Math.min(3, (H / n - 1) / 2);  // half-height of the end caps
     let s = `<svg class="lt-eb" width="${eb.width}" height="${H}">`;
     if (eb.ref != null)
       s += `<line class="lt-eb-ref" x1="${x(eb.ref)}" y1="0" x2="${x(eb.ref)}" y2="${H}"/>`;
