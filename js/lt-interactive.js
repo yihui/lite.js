@@ -353,6 +353,8 @@
     // raw values (`{col: value}`, including hidden columns) under an id,
     // replacing or (with a null `fn`) removing it, then re-render. `spec`/`state`
     // are exposed for reading (a widget's choices come from `el._ltSpec.data`).
+    // `bar` (set once the control bar is built) and `resetDetail` (set when the
+    // table has row detail) are added below.
     el._lt = {
       spec, state,
       refresh: () => refresh(),
@@ -408,11 +410,19 @@
       elem(el.ownerDocument, "div", { className: "lti-chips" }, headBar),
       barCols, flt.cols, spec.data, state, refresh);
     if (opts.search !== false) addSearch(headBar, el, state, refresh);
+    // the assembled control bar (`.lti-bar`), or null when the table has no
+    // table-wide controls, so a caller can append its own widget to it
+    el._lt.bar = headBar;
     // row detail re-renders through the same seam: toggling a row only changes
     // which rows carry a detail block, so a plain re-render (no new view) is
     // enough
-    if (opts.detail)
-      postSwap.push(addDetail(el, spec, nAll, state, opts.detail, () => refresh(false)));
+    if (opts.detail) {
+      const detail = addDetail(el, spec, nAll, state, opts.detail, () => refresh(false));
+      postSwap.push(detail);
+      // bust the per-row detail cache and re-render open details (one row, or
+      // all); for a caller whose widget changes what the detail callback returns
+      el._lt.resetDetail = detail.reset;
+    }
     // `pager` is the page sizes to offer, the first one being the initial
     if (opts.pager) {
       const sizes = Array.isArray(opts.pager) ? opts.pager : [10, 25, 50, 100];
@@ -610,7 +620,7 @@
       state.expanded.has(r) ? state.expanded.delete(r) : state.expanded.add(r);
       rerender();
     };
-    return (body, rows) => [...body.rows].forEach((tr, i) => {
+    const decorate = (body, rows) => [...body.rows].forEach((tr, i) => {
       const r = rows[i];
       if (typeof r !== "number") return;  // a separator group-header row
       // the first data cell (past any leading rowspan group cell), so the caret
@@ -631,6 +641,17 @@
         LT.render(elem(doc, "div", {}, cell), child);
       }
     });
+    // drop the memoized detail for one row (or every row, no argument) and
+    // re-render, so an already-opened detail is rebuilt from its callback — e.g.
+    // a caller's control-bar widget changed what the callback should return.
+    // Rebuilding re-runs the callback, so a detail table's own sort/filter state
+    // is reset along with its data.
+    decorate.reset = r => {
+      if (r == null) for (const k in cache) delete cache[k];
+      else delete cache[r];
+      rerender();
+    };
+    return decorate;
   }
 
   // The table's <colgroup>, created when core emitted none (it only does so for
@@ -778,9 +799,11 @@
             "aria-label": "Show or hide columns", "aria-expanded": "false"
           }, wrap),
           menu = elem(doc, "div", { className: "lti-menu", hidden: true }, wrap);
-    cols.forEach((c, i) => {
+    // one checkbox per column; `sub` indents it under a spanner group header
+    const addBox = (i, sub) => {
+      const c = cols[i];
       if (c == null) return;
-      const label = elem(doc, "label", {}, menu),
+      const label = elem(doc, "label", sub ? { className: "lti-sub" } : {}, menu),
             box = elem(doc, "input", { type: "checkbox", checked: true }, label);
       label.append(labels[i] ?? c);
       if (start.includes(c)) { box.checked = false; hidden.add(i); }
@@ -788,7 +811,17 @@
         box.checked ? hidden.delete(i) : hidden.add(i);
         apply(i);
       };
-    });
+    };
+    // Group the checkboxes under their spanners: the same column label can repeat
+    // across spanners (e.g. auto-span's "Sepal.Length"/"Petal.Length" both show as
+    // "Length"), so a flat list would be ambiguous. Walk the spanner row, emitting
+    // a group header before a real spanner's columns and listing a non-spanned
+    // column on its own. With no spanner row, list columns flat.
+    if (spanCells.length) for (const c of spanCells) {
+      const span = c.classList.contains("lt-spanner");
+      if (span) elem(doc, "div", { className: "lti-group", textContent: c.textContent }, menu);
+      for (let i = c._start; i < c._start + c._span; i++) addBox(i, span);
+    } else cols.forEach((_, i) => addBox(i));
     cols.forEach((_, i) => apply(i));  // reflect any columns that start hidden
     const open = on => {
       menu.hidden = !on;
@@ -800,13 +833,14 @@
   }
 
   // --- Typed column filters (the `filter` named-list form). A typed spec is
-  // {type:"select"|"range", label?, choices?, min?, max?, step?, value?,
-  // selected?}; it renders as a funnel + popover, under its own header when the
-  // column is visible or as a labelled head-bar chip when it is hidden (the
-  // column still travels in spec.data, which is what computeView filters on). The
-  // popover holds an expression box AND a widget (a value dropdown or a range
-  // slider); both edit the one filter term for that column (state.filters[col])
-  // and stay in sync, so the widget is a friendly face on the same expression a
+  // {type:"select"|"range"|"checklist", label?, choices?, min?, max?, step?,
+  // value?, selected?}; it renders as a funnel + popover, under its own header
+  // when the column is visible or as a labelled head-bar chip when it is hidden
+  // (the column still travels in spec.data, which is what computeView filters
+  // on). The popover holds an expression box AND a widget (a value dropdown, a
+  // range slider, or a checklist of values); both edit the one filter term for
+  // that column (state.filters[col]) and stay in sync, so the widget is a
+  // friendly face on the same expression a
   // reader could type.
 
   // A filter term string <-> a widget value, per type. A `null` parse means the
@@ -822,13 +856,22 @@
         rngParse = s => {
           const m = /^\s*x\s*>=\s*(-?[\d.]+)\s*&&\s*x\s*<=\s*(-?[\d.]+)\s*$/.exec(s || "");
           return m ? [parseFloat(m[1]), parseFloat(m[2])] : null;
+        },
+        // a set filter keeps rows whose value is one of the checked ones; every
+        // choice checked -> "" (no filter), none -> "[].includes(x)" (no rows)
+        setExpr = (sel, all) =>
+          sel.length === all.length ? "" : `${JSON.stringify(sel.map(String))}.includes(x)`,
+        setParse = s => {
+          const m = /^\s*(\[[\s\S]*\])\.includes\(\s*x\s*\)\s*$/.exec(s || "");
+          if (!m) return null;
+          try { return JSON.parse(m[1]); } catch (e) { return null; }
         };
 
   // Fill a typed spec's choices (select) or min/max (range) from the column's
   // data when the R side left them out, so `filter = list(x = "select")` needs no
   // enumeration. Returns a copy with the gaps filled.
   function resolveSpec(spec, column) {
-    if (spec.type === "select") {
+    if (spec.type === "select" || spec.type === "checklist") {
       let choices = spec.choices;
       if (!choices) {
         const seen = new Set(), vals = [];
@@ -837,9 +880,11 @@
           ? a - b : String(a).localeCompare(String(b)));
         choices = vals.map(v => ({ value: String(v), label: String(v) }));
       }
-      // a leading blank is the "no filter" choice, so a select shows every row
-      // until the reader picks a value (and can always return to it)
-      if (!choices.some(o => o.value === "")) choices = [{ value: "", label: "" }, ...choices];
+      // a select offers a leading blank "no filter" choice, so it shows every
+      // row until the reader picks a value; a checklist starts with every box
+      // checked (which is itself "no filter"), so it needs no blank
+      if (spec.type === "select" && !choices.some(o => o.value === ""))
+        choices = [{ value: "", label: "" }, ...choices];
       return { ...spec, choices };
     }
     let { min, max } = spec;
@@ -861,6 +906,26 @@
     options.forEach(o => elem(doc, "option", { value: o.value, textContent: o.label }, sel));
     sel.onchange = () => onInput(sel.value);
     return { el: sel, set: v => sel.value = v };
+  }
+
+  // A list of {value, label} checkboxes (every box starts checked); `onInput`
+  // fires with the array of checked values on any change. Returns
+  // { el: [<label>...], set(values) }. Exposed on LT.ui so a caller can drop a
+  // checklist control into its own popover (e.g. forestly's treatment-group
+  // picker in the control bar) and reuse it as the checklist filter's widget.
+  function makeChecklist(doc, options, onInput) {
+    const boxes = options.map(o => {
+      const label = elem(doc, "label", { className: "lti-check" }),
+            box = elem(doc, "input", { type: "checkbox", checked: true, value: o.value }, label);
+      label.append(o.label);
+      return { o, box, label };
+    });
+    const emit = () => onInput(boxes.filter(b => b.box.checked).map(b => b.o.value));
+    boxes.forEach(b => b.box.onchange = emit);
+    return {
+      el: boxes.map(b => b.label),
+      set: vals => boxes.forEach(b => b.box.checked = vals.includes(b.o.value))
+    };
   }
 
   // A two-thumb range slider from a track, a fill band, and two <button> thumbs —
@@ -986,6 +1051,24 @@
               ed = { el: [w.el, out], reflect: t => { const p = rngParse(t) || [cfg.min, cfg.max]; w.set(p); show(p); } };
         return ed;
       }
+    },
+    checklist: {
+      // the chip summary: the chosen labels (few), else a count; empty when every
+      // box is checked (term "", no filter)
+      describe: (t, cfg) => {
+        const sel = setParse(t);
+        if (sel == null) return t ? "⋯" : "";
+        const labs = cfg.choices.filter(o => sel.includes(o.value)).map(o => o.label);
+        return labs.length <= 2 ? labs.join(", ") : `${labs.length} selected`;
+      },
+      // `[].concat` so a single `selected` value (a scalar from R) still seeds
+      init: cfg => setExpr([].concat(cfg.selected ?? cfg.choices.map(o => o.value)), cfg.choices),
+      build: (doc, cfg, setTerm) => {
+        const all = cfg.choices.map(o => o.value),
+              w = makeChecklist(doc, cfg.choices, sel => setTerm(setExpr(sel, cfg.choices), ed)),
+              ed = { el: w.el, reflect: t => { const sel = setParse(t); w.set(sel == null ? all : sel); } };
+        return ed;
+      }
     }
   };
 
@@ -1101,6 +1184,9 @@
   };
 
   LT.plugins.interactive = { matcher, computeView, pageSlice, enhance };
+  // reusable control bits for callers building their own control-bar widgets
+  // (with el._lt.bar): a funnel popover and a checklist of checkboxes
+  LT.ui = Object.assign(LT.ui || {}, { popover, checklist: makeChecklist });
   LT.onMount.push(onMount);
   // Core drains its render queue before this file loads, so the callback above
   // only sees later renders; enhance the tables already on the page now.
