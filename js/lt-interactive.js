@@ -631,7 +631,7 @@
     cols.forEach(c => {
       const cell = elem(doc, "td", {}, row),
             spec = c in explicit ? explicit[c] : def;
-      if (!spec) return;                           // no filter on this column
+      if (!spec || !filterable(data, c)) return;   // no filter on this column
       if (spec === true) {                         // a plain search box
         const input = cell.appendChild(searchInput(doc, `Filter ${c}`));
         onType(input, v => { v ? (state.filters[c] = v) : delete state.filters[c]; refresh(); });
@@ -640,6 +640,13 @@
     });
     hrow.after(row);
   }
+
+  // Filterable only if the column holds some non-blank value; a plot-only `into`
+  // column (no data array) has nothing to match, so gets no box.
+  const filterable = (data, col) => {
+    const a = data && data[col];
+    return Array.isArray(a) && a.some(v => v != null && v !== "");
+  };
 
   // Expandable row detail. `detailOpt` is either an array of column names (the
   // detail is a one-row table of those columns' displayed values) or a callback
@@ -875,7 +882,7 @@
     };
     const wrap = elem(doc, "span", { className: "lti-cols" }, cell),
           btn = elem(doc, "button", {
-            type: "button", title: "Columns",
+            type: "button", title: "Show or hide columns",
             "aria-label": "Show or hide columns", "aria-expanded": "false"
           }, wrap),
           menu = elem(doc, "div", { className: "lti-menu", hidden: true }, wrap);
