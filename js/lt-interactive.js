@@ -628,8 +628,13 @@
     // leading rowspan group columns carry no filter, but their cells must still
     // be present so each data column's box lines up under its own header
     for (let i = 0; i < nGroup; i++) elem(doc, "td", {}, row);
-    cols.forEach(c => {
-      const cell = elem(doc, "td", {}, row),
+    // mirror each column's alignment onto its filter cell, so a funnel sits under
+    // the header's text (e.g. right-aligned for a numeric column), read off the
+    // header cells, which line up with `cols`
+    const hCells = dataCells(hrow);
+    cols.forEach((c, ci) => {
+      const al = ["al-r", "al-c"].find(k => hCells[ci]?.classList.contains(k)),
+            cell = elem(doc, "td", al ? { className: al } : {}, row),
             spec = c in explicit ? explicit[c] : def;
       if (!spec || !filterable(data, c)) return;   // no filter on this column
       if (spec === true) {                         // a plain search box
