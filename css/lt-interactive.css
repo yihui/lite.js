@@ -122,14 +122,18 @@
     }
   }
 
+  /* shared footprint for the eye button and the download button */
+  .lti-cols button, .lti-download {
+    border: none;
+    padding: 0;
+    width: 1.2em;
+    height: 1.2em;
+  }
+
   /* the column-visibility menu: an eye button and the checklist it pops up */
   .lti-cols {
     position: relative;
     button {
-      border: none;
-      padding: 0;
-      width: 1.2em;
-      height: 1.2em;
       background: center / contain no-repeat url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="gray" stroke-width="1.5"><path d="M1 8s2.5-4.5 7-4.5 7 4.5 7 4.5-2.5 4.5-7 4.5-7-4.5-7-4.5z"/><circle cx="8" cy="8" r="2"/></svg>');
     }
     .lti-menu {
@@ -156,10 +160,6 @@
 
   /* the CSV download button: an icon button, same footprint as the eye button */
   .lti-download {
-    border: none;
-    padding: 0;
-    width: 1.2em;
-    height: 1.2em;
     background: center / contain no-repeat url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="gray" stroke-width="1.5"><path d="M8 1v9m0 0L4.5 6.5M8 10l3.5-3.5"/><path d="M2 11v3h12v-3"/></svg>');
   }
 
@@ -211,14 +211,14 @@
       left: 0;
       display: flex;
       flex-direction: column;
-      /* an explicit display beats the UA [hidden] rule, so re-hide it here */
-      &[hidden] { display: none; }
       gap: 0.5em;
       min-width: 14em;
       max-width: 90vw;
       padding: 0.6em;
       background: Canvas;
       border: 1px solid;
+      .lti-widget { display: contents; }
+      &[hidden], [hidden] { display: none; }
       /* a checklist widget's rows: a checkbox beside its label */
       .lti-check {
         display: flex;
