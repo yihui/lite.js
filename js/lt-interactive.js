@@ -379,7 +379,9 @@
     // table has row detail) are added below.
     el._lt = {
       spec, state,
-      refresh: () => uiRefresh(),
+      // re-render the body. `stale` (default) recomputes the view and resets to
+      // page 1; `false` keeps the current view and page (e.g. a plot refit)
+      refresh: (stale = true) => uiRefresh(stale),
       // the current filtered + sorted row indices (1-based, every row, not just
       // the page) — e.g. for a "download what's shown" button that must honor the
       // typed filters (which live in state.filters, not external predicates)
@@ -713,32 +715,40 @@
       const d = tr.nextElementSibling;
       return d?.classList.contains("lti-detail") ? d : openDetail(tr, r);
     };
+    // the table's base width (no detail shown), captured each render by presize
+    let baseW = 0;
+    // Grow the table's explicit `width` (not min-width, so a wrapping container's
+    // max-width still caps it) to fit a just-shown detail wider than the base
+    // width. Width only grows, so a wide detail widens the table once and
+    // reopening it never jumps again.
+    const grow = () => {
+      const w = Math.ceil(el.getBoundingClientRect().width);
+      if (w > baseW && w > (parseFloat(el.style.width) || 0)) el.style.width = w + "px";
+    };
     // toggle one row in place: just flip the (already built) detail's visibility.
     const toggle = (tr, btn, r) => {
       const open = state.expanded.has(r);
       open ? state.expanded.delete(r) : state.expanded.add(r);
       setCaret(btn, !open);
       const d = ensureDetail(tr, r);
-      if (d) d.hidden = open;   // was open -> hide; was closed -> show
+      if (!d) return;
+      d.hidden = open;    // was open -> hide; was closed -> show
+      if (!open) grow();  // a newly shown detail may be wider than the table
     };
-    // Pre-size the table to its widest current-page detail so expanding never
-    // jumps the width. At idle: open each detail to measure, re-hide it, and set
-    // `width` (not min-width, so the wrap's max-width still caps it) to the widest
-    // when it beats the intrinsic width. Also warms every expand to an instant
-    // show/hide. Re-run per <tbody> render, so the width tracks the page.
+    // Pre-size the table from its first row detail so a typical expand never
+    // jumps the width: at idle, open just the first detail to measure, re-hide
+    // it, and grow the table to it. Other details stay deferred; a wider one
+    // grows the table when first opened (see grow). Re-run per <tbody> render.
     const win = doc.defaultView, idle = win.requestIdleCallback || win.setTimeout;
     const presize = (body) => idle(() => {
       if (!body.isConnected) return;                   // a newer render replaced it
       el.style.width = "";
-      const intrinsic = el.getBoundingClientRect().width;
-      let max = intrinsic;
-      body.querySelectorAll(".lti-expand").forEach(c => {
-        if (c.getAttribute("aria-expanded") === "true") return;  // already shown
-        c.click();                                     // build + show
-        max = Math.max(max, el.getBoundingClientRect().width);
-        c.click();                                     // hide (stays built)
-      });
-      if (max > intrinsic) el.style.width = Math.ceil(max) + "px";
+      baseW = el.getBoundingClientRect().width;
+      const c = $(body, ".lti-expand[aria-expanded='false']");
+      if (!c) return;
+      c.click();                                       // build + show
+      grow();
+      c.click();                                       // hide (stays built)
     });
     const decorate = (body, rows) => {
       [...body.rows].forEach((tr, i) => {
@@ -1192,7 +1202,11 @@
     // click inside the open panel must not toggle it shut
     const anchor = host || wrap;
     anchor.onclick = e => { if (!panel.contains(e.target)) open(panel.hidden); };
-    on(doc, "click", e => { if (!anchor.contains(e.target)) open(false); });
+    // close on an outside press, not click: using a widget re-renders the table,
+    // so a press inside and release can land on different elements, firing a stray
+    // click on their ancestor outside the panel (as a native <select> pick does).
+    // The press is always inside, so a pointerdown guard spares it.
+    on(doc, "pointerdown", e => { if (!anchor.contains(e.target)) open(false); });
     on(doc, "keydown", e => { if (e.key === "Escape") open(false); });
     return wrap;
   }

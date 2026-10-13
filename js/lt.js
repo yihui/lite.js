@@ -785,6 +785,15 @@
     // case — core drains the queue before a plugin file runs) can still find
     // and enhance it by scanning `.lt-table`.
     tbl._ltSpec = spec;
+    // Map each visible column to its header cell, for a plugin tracking a column
+    // (e.g. observing its width). Built before any plugin adds <thead> rows, so
+    // the last header row is the labels row; nGrp offsets the data columns.
+    const hr = tbl.tHead && [...tbl.tHead.rows].pop(),
+          nGrp = (spec._rowspan || []).length;
+    if (hr) {
+      const m = tbl._ltHead = {};
+      (spec._cols || []).forEach((c, i) => m[c] = hr.cells[nGrp + i]);
+    }
     wireRaw(tbl);
     onMount.forEach(f => f(tbl, spec));
     return tbl;

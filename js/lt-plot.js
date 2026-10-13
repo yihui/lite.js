@@ -18,6 +18,18 @@
   // and must match the font-size for `.lt-eb-axis text` in lt-plot.css.
   const EB_AXIS_FONT = 11;
 
+  // Auto-fit: cfg.fit is a CSS width (--fw), cfg.floor the min px (--w). The
+  // resizer (bottom) remeasures and redraws at the real px, so marks stay crisp.
+  const fitCls = cfg => cfg.fit ? " lt-fit" : "",
+        fitDecl = cfg => cfg.fit ? `--w:${cfg.floor}px;--fw:${cfg.fit}` : "",
+        fitStyle = cfg => cfg.fit ? ` style="${fitDecl(cfg)}"` : "";
+  // Shared cfg fields: coord width (op._w once the resizer measured it, else the
+  // fixed/floor px `dflt`), the CSS width, and the floor.
+  const fitCfg = (op, dflt) => {
+    const floor = op.width || dflt;
+    return { width: op._w || floor, fit: op.fit, floor };
+  };
+
   // "Nice" axis ticks for [lo, hi] (~n of them), à la base R's pretty(): snap
   // the step to 1/2/5 × 10^k so labels are round numbers. Returns tick values
   // rounded to the step's own precision (so no float noise like 0.30000001).
@@ -75,7 +87,7 @@
     const H = eb.height, n = eb.cols.length, x = v => ebX(eb, v),
           yOf = i => stackY(i, n, H),  // one track per series, stacked
           cap = Math.min(3, (H / n - 1) / 2);  // half-height of the end caps
-    let s = `<svg class="lt-eb" width="${eb.width}" height="${H}">`;
+    let s = `<svg class="lt-eb${fitCls(eb)}" width="${eb.width}" height="${H}"${fitStyle(eb)}>`;
     if (eb.ref != null)
       s += `<line class="lt-eb-ref" x1="${x(eb.ref)}" y1="0" x2="${x(eb.ref)}" y2="${H}"/>`;
     const titles = [];
@@ -112,7 +124,7 @@
   // per-cell fixed-height SVG could not: the cell padding leaves a gap it can't
   // reach. Scaling only the vertical axis is harmless for vertical lines.
   function svgGrid(eb) {
-    let s = `<svg class="lt-eb-grid-bg" width="${eb.width}" height="100%" ` +
+    let s = `<svg class="lt-eb-grid-bg${fitCls(eb)}" width="${eb.width}" height="100%" ` +
             `viewBox="0 0 ${eb.width} 10" preserveAspectRatio="none">`;
     for (const t of eb.ticks)
       s += `<line x1="${ebX(eb, t)}" y1="0" x2="${ebX(eb, t)}" y2="10"/>`;
@@ -125,7 +137,7 @@
   // caption slightly wider than the narrow column spill rather than clip.
   function svgAxis(eb, u) {
     const W = eb.width, lbl = eb.axisLabel, H = lbl ? 32 : 18, x = v => ebX(eb, v);
-    let s = `<svg class="lt-eb-axis" width="${W}" height="${H}" overflow="visible">` +
+    let s = `<svg class="lt-eb-axis${fitCls(eb)}" width="${W}" height="${H}" overflow="visible"${fitStyle(eb)}>` +
             `<line x1="${EB_PAD}" y1="1" x2="${W - EB_PAD}" y2="1"/>`;
     for (const t of (eb.ticks || [])) {
       const xt = x(t),
@@ -150,7 +162,7 @@
       const cfg = {
         col: v, cols, colors: op.colors, labels: op.labels,
         min: op.min, max: op.max, axisLabel: op.axis_label,
-        width: op.width || 160, height: op.height || 16, ...extra(op)
+        height: op.height || 16, ...fitCfg(op, 160), ...extra(op)
       };
       // When an axis is requested, the same nice ticks drive both the footer
       // axis and the faint in-cell gridlines; their count is capped so the
@@ -202,8 +214,10 @@
     const xAt = i => round1(n > 1 ? SP_PAD + i / (n - 1) * (W - 2 * SP_PAD) : W / 2),
           yAt = v => round1(hi > lo
             ? H - SP_PAD - (v - lo) / (hi - lo) * (H - 2 * SP_PAD) : H / 2);
-    // the line/bars inherit `currentColor`, so one color prop styles either
-    const style = sp.color ? ` style="color:${u.esc(sp.color)}"` : "";
+    // line/bars inherit `currentColor`, so one color prop styles either
+    const sv = [fitDecl(sp), sp.color && `color:${u.esc(sp.color)}`]
+      .filter(Boolean).join(";");
+    const style = sv ? ` style="${sv}"` : "";
     let body;
     if (sp.kind === "bar") {
       // one equal-width slot per value; each bar is centered in its slot and
@@ -225,7 +239,7 @@
       });
       body = `<path class="lt-spark-line" d="${d}"/>`;
     }
-    return `<svg class="lt-spark" width="${W}" height="${H}"${style}>${body}` +
+    return `<svg class="lt-spark${fitCls(sp)}" width="${W}" height="${H}"${style}>${body}` +
            `<title>${u.esc(fin.map(u.str).join(", "))}</title></svg>`;
   }
 
@@ -236,8 +250,8 @@
       const cols = op.columns || [], v = cols[0];
       if (!v) return {};
       return { [v]: {
-        col: v, cols, kind: op.kind, min: op.min, max: op.max,
-        color: op.color, width: op.width || 120, height: op.height || 20
+        col: v, cols, kind: op.kind, min: op.min, max: op.max, color: op.color,
+        height: op.height || 20, ...fitCfg(op, 120)
       } };
     },
     cell: (sp, data, r, u) => svgSparkline(sp, data, r, u)
@@ -254,7 +268,7 @@
           // own track (like the stacked error bar) so near-equal values do not
           // overlap — the vertical position is cosmetic, only x carries a value
           yOf = i => dp.stagger ? stackY(i, n, H) : H / 2;
-    let s = `<svg class="lt-dot" width="${dp.width}" height="${H}">`;
+    let s = `<svg class="lt-dot${fitCls(dp)}" width="${dp.width}" height="${H}"${fitStyle(dp)}>`;
     const titles = [];
     dp.cols.forEach((c, i) => {
       const v = data[c]?.[r - 1];
@@ -285,6 +299,38 @@
   // plot draws on a scale shared across them. Shares the error-bar axis/gridline
   // machinery via axisPlot (ticks, svgGrid, svgAxis, lt-eb-cell, legend).
   cells.dotplot = axisPlot(op => ({ stagger: op.stagger }), svgDotplot);
+
+  // Resizer for fit plots: on each change of a fit column's width, store the new
+  // px on the op (op._w) and redraw. We observe the column's header cell (core
+  // hands us one per column in tbl._ltHead) -- <thead> survives the <tbody> swaps
+  // of sort/filter/paging, and it changes exactly when the column does (resize
+  // drag, hidden column, reflow), unlike the wrapper. We draw at the plot SVG's
+  // own width: width:100%, so it reports the px it fills and carries no intrinsic
+  // width, so a redraw never resizes the column just measured (no loop). Redraws
+  // coalesce into one frame; refresh(false) keeps the current view and page.
+  (LT.onMount || (LT.onMount = [])).push((tbl, spec) => {
+    const fitOps = (spec.ops || []).filter(o => cells[o.type] && o.fit);
+    if (!fitOps.length || !root.ResizeObserver || !tbl._ltHead) return;
+    const redraw = () => (tbl._lt ? tbl._lt.refresh(false) : LT.refresh(tbl));
+    let raf;
+    const probes = fitOps  // [op, header cell], fit columns core knows
+      .map(op => [op, tbl._ltHead[op.into || op.columns?.[0]]])
+      .filter(([, th]) => th);
+    const measure = () => {
+      let changed = false;
+      for (const [op, th] of probes) {
+        const svg = tbl.querySelector("tbody tr:not(.lt-row-group)")
+          ?.cells[th.cellIndex]?.querySelector("svg");
+        if (!svg) continue;
+        const w = Math.round(svg.getBoundingClientRect().width);
+        if (w > 0 && w !== op._w) { op._w = w; changed = true; }
+      }
+      if (changed) { cancelAnimationFrame(raf); raf = requestAnimationFrame(redraw); }
+    };
+    const ro = new ResizeObserver(measure);
+    for (const [, th] of probes) ro.observe(th);
+    measure();  // deterministic initial fit; observer handles later changes
+  });
 
   // If core already built a table before this module loaded (a doc where an
   // earlier plain table pulled in lt.js first, so its renderer was missing),

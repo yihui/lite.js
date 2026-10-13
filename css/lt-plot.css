@@ -1,5 +1,8 @@
 /* lt-plot.css — styles for inline graphics cells (see lt-plot.js). */
 .lt-table {
+  /* auto-fit plot: SVG takes --fw of its column (min --w); the resizer redraws
+     it at the measured px (see lt-plot.js) */
+  .lt-fit { width: var(--fw, 100%); min-width: var(--w, 0); }
   .lt-eb-cell {
     position: relative;
     padding: 0;  /* so the gridline background fills the whole cell */
