@@ -542,15 +542,16 @@
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
-  // A button that downloads the table's current view as a CSV file. The header
-  // row is the column labels; each body row is a view row (every row the filters
-  // and search keep, in sort order, across all pages — `el._lt.view()` gives the
-  // 1-based original indices) rendered with the displayed cell text from
-  // `spec._display`. `name` is the file name (`true` = a default); group columns
-  // (null in `cols`) are skipped. No library, no network: a Blob and an <a>.
-  function addDownload(cell, el, spec, cols, labels, name) {
+  // A button that downloads the current view (every row the filters and search
+  // keep, across all pages — `el._lt.view()`) as a CSV file. `opt` is the file
+  // name or `{file?, mode?}`; `mode: "raw"` exports the raw values (`spec.data`)
+  // instead of the displayed text (`spec._display`). Group columns (null in
+  // `cols`) are skipped. No library: a Blob and an <a>.
+  function addDownload(cell, el, spec, cols, labels, opt) {
     const doc = el.ownerDocument,
-          file = (typeof name === "string" && name ? name : "table")
+          o = typeof opt === "object" ? opt : { file: opt },
+          raw = o.mode === "raw",
+          file = (typeof o.file === "string" && o.file ? o.file : "table")
             .replace(/(\.csv)?$/i, ".csv"),
           keep = cols.map((c, i) => i).filter(i => cols[i] != null),
           btn = elem(doc, "button", {
@@ -558,10 +559,10 @@
             "aria-label": "Download table as CSV"
           }, cell);
     btn.onclick = () => {
-      const disp = spec._display || {},
+      const src = (raw ? spec.data : spec._display) || {},
             lines = [keep.map(i => csvField(labels[i] ?? cols[i])).join(",")];
       for (const r of el._lt.view())
-        lines.push(keep.map(i => csvField((disp[cols[i]] || [])[r - 1])).join(","));
+        lines.push(keep.map(i => csvField((src[cols[i]] || [])[r - 1])).join(","));
       const url = URL.createObjectURL(
         new Blob([lines.join("\n")], { type: "text/csv" }));
       elem(doc, "a", { href: url, download: file }).click();
