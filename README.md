@@ -161,6 +161,12 @@ the URL with the hash in the address bar of your browser.
 Simply run `renderMathInElement(document.body)` to render math expression using
 KaTeX's auto-render extension.
 
+## render-pele.js
+
+Render diagrams in `<pre class="pele">` using [Pele](https://pele.run)
+(`pele.mount()`), a lightweight renderer for the Mermaid syntax. The Pele
+library (`pele.global.js`) must be loaded before this script.
+
 ## right-quote.js
 
 Right-align a `<blockquote>` footer if the footer is a `<p>` that starts with
