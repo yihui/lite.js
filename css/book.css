@@ -34,19 +34,15 @@ body {
   padding: 1em;
   margin-bottom: 2em;
 }
-.chapter:not(.appendix) .main-number {
-  &::before {
-    content: "Chapter ";
+.chapter {
+  &:not(.appendix) .main-number {
+    &::before { content: "Chapter "; }
+    &::after { content: none; }
   }
-  &::after {
-    content: none;
-  }
-}
-.chapter h1 {
-  margin: 1em auto 3em;
-  border-bottom: 1px solid;
-  &:has(+ .epigraph) {
-    margin-bottom: 2em;
+  h1 {
+    margin: 1em auto 3em;
+    border-bottom: 1px solid;
+    &:has(+ .epigraph) { margin-bottom: 2em; }
   }
 }
 h1 .section-number {

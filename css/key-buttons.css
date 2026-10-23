@@ -7,9 +7,9 @@ kbd {
   min-width: 1.5em;
   text-align: center;
   margin-right: .15em;
-}
-kbd:hover {
-  position: relative;
-  top: 2px;
-  left: 2px;
+  &:hover {
+    position: relative;
+    top: 2px;
+    left: 2px;
+  }
 }

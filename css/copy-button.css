@@ -7,9 +7,9 @@
   height: 1em;
   border: 1px solid;
   box-shadow: -3px 3px #999;
-}
-:is(:focus, :hover) > .copy-button {
-  display: inline-block;
+  :is(:focus, :hover) > & {
+    display: inline-block;
+  }
 }
 .copy-success {
   box-shadow: none;

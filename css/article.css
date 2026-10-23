@@ -33,10 +33,10 @@ div:not(.body):has(> table) { overflow-x: auto; }
   float: left;
   clear: left;
   margin-left: var(--side-margin);
+  position: sticky;
   &:not(.body > *) {
     margin-left: calc(var(--side-margin) + 1em);
   }
-  position: sticky;
 }
 .side-right {
   float: right;

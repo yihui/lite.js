@@ -1,5 +1,27 @@
-nav > p:last-child {
-  border-bottom: 1px dashed #666;
+nav {
+  & > p {
+    display: flex;
+    flex-wrap: wrap;
+    &:last-child {
+      border-bottom: 1px dashed #666;
+    }
+  }
+  a {
+    display: inline-block;
+    background: white;
+    padding: .2em .5em;
+    margin-right: .5em;
+    &:hover {
+      background: #4682b4;
+      color: white;
+    }
+    &.right {
+      margin-left: auto;
+      margin-right: 0;
+      img { vertical-align: middle; }
+      &:hover img { filter: invert(1); }
+    }
+  }
 }
 footer {
   border-top: 1px dashed #666;
@@ -8,28 +30,8 @@ footer {
     gap: 2em;
   }
 }
-nav a, footer a {
+:is(nav, footer) a {
   text-decoration: none;
-}
-nav a {
-  display: inline-block;
-  background: white;
-  padding: .2em .5em;
-  margin-right: .5em;
-}
-nav a:hover {
-  background: #4682b4;
-  color: white;
-}
-nav > p {
-  display: flex;
-  flex-wrap: wrap;
-}
-nav a.right {
-  margin-left: auto;
-  margin-right: 0;
-  img { vertical-align: middle; }
-  &:hover img { filter: invert(1); }
 }
 .body, .frontmatter, .body ~ .appendix {
   box-shadow: none;

@@ -18,37 +18,42 @@ h1, h2, h3, h4, h5, h6 {
 a {
   color: #0088cc;
   text-decoration: none;
-}
-a:hover, a:focus{
-  color: #005580;
-  text-decoration: underline;
+  &:hover, &:focus {
+    color: #005580;
+    text-decoration: underline;
+  }
 }
 table {
   width: 100%;
   border: 0;
 }
-td.docs, td.code {
-  vertical-align: top;
-  padding: 1em 1em 1px 2em;
+td {
+  &.docs, &.code {
+    vertical-align: top;
+    padding: 1em 1em 1px 2em;
+  }
+  &.docs {
+    width: 50%;
+    code {
+      background: #f8f8ff;
+      border: 1px solid #dedede;
+    }
+    &:hover .pilcrow {
+      opacity: 1;
+    }
+  }
+  &.code {
+    background: #f5f5ff;
+    overflow-x: hidden;
+  }
 }
-td.docs {
-  width: 50%;
-}
-td.code{
-  background: #f5f5ff;
-  overflow-x: hidden;
-}
-code{
+code {
   font-size: .9em;
-}
-td.docs code{
-  background: #f8f8ff;
-  border: 1px solid #dedede;
 }
 img {
   max-width: 100%;
 }
-pre code{
+pre code {
   display: block;
   white-space: pre-wrap;
 }
@@ -64,9 +69,6 @@ pre code{
   left: -1.5em;
   padding: 1px 2px;
   opacity: 0;
-}
-td.docs:hover .pilcrow {
-  opacity: 1;
 }
 blockquote {
   border-left: 4px solid #DDD;

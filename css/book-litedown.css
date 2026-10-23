@@ -95,19 +95,16 @@
     flex: 1 0 min-content;
   }
   pre:has(code[data-file]) {
-    &, &::before {
+    border: groove mintcream;
+    border-top: none;
+    &::before {
       border: groove mintcream;
+      border-left: none;
+      border-bottom: none;
     }
     code {
       border: none;
       border-top: 1px dashed lightgray;
-    }
-    & {
-      border-top: none;
-    }
-    &::before {
-      border-left: none;
-      border-bottom: none;
     }
   }
 }

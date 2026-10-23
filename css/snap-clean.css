@@ -66,16 +66,16 @@ body {
   ul {
     padding-left: 1.5em;
     li::marker { color: color-mix(in srgb, var(--clean-accent) 70%, white); }
-  }
-  ul ul {
-    list-style: none;
-    li::before {
-      content: var(--right-arrow);
-      color: color-mix(in srgb, var(--clean-accent) 60%, white);
-      display: inline-block;
-      width: 1em;
-      margin-left: -1em;
-      margin-right: 0.5em;
+    ul {
+      list-style: none;
+      li::before {
+        content: var(--right-arrow);
+        color: color-mix(in srgb, var(--clean-accent) 60%, white);
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+        margin-right: 0.5em;
+      }
     }
   }
   ol {
@@ -92,12 +92,20 @@ body {
     gap: min(4vw, 1.5em);
   }
   .columns5050 > div { width: 50%; }
-  .columns3070 > div:first-child { width: 30%; }
-  .columns3070 > div:not(:first-child) { width: 70%; }
-  .columns7030 > div:first-child { width: 70%; }
-  .columns7030 > div:not(:first-child) { width: 30%; }
-  .columns4060 > div:first-child { width: 40%; }
-  .columns4060 > div:not(:first-child) { width: 60%; }
-  .columns6040 > div:first-child { width: 60%; }
-  .columns6040 > div:not(:first-child) { width: 40%; }
+  .columns3070 {
+    & > div:first-child { width: 30%; }
+    & > div:not(:first-child) { width: 70%; }
+  }
+  .columns7030 {
+    & > div:first-child { width: 70%; }
+    & > div:not(:first-child) { width: 30%; }
+  }
+  .columns4060 {
+    & > div:first-child { width: 40%; }
+    & > div:not(:first-child) { width: 60%; }
+  }
+  .columns6040 {
+    & > div:first-child { width: 60%; }
+    & > div:not(:first-child) { width: 40%; }
+  }
 }
