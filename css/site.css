@@ -21,6 +21,16 @@ nav a:hover {
   background: #4682b4;
   color: white;
 }
+nav > p {
+  display: flex;
+  flex-wrap: wrap;
+}
+nav a.right {
+  margin-left: auto;
+  margin-right: 0;
+  img { vertical-align: middle; }
+  &:hover img { filter: invert(1); }
+}
 .body, .frontmatter, .body ~ .appendix {
   box-shadow: none;
   margin-top: auto;
