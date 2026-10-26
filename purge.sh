@@ -14,10 +14,10 @@ done
 
 # wait (up to ~10 min) for the new version to show up on jsdelivr
 url="https://cdn.jsdelivr.net/npm/@xiee/utils@${tag2}/"
-trap 'echo "$url"' EXIT
 for i in $(seq 20); do
+  echo "checking: $url"
   sleep 30
-  curl -sSfL "$url" | grep -q "${tag2#v}" && exit 0
+  curl -sSfL "$url" | grep "${tag2#v}" >/dev/null && exit 0
 done
 echo "${tag2} not available on jsdelivr" >&2
 exit 1
