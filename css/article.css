@@ -152,7 +152,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
 @media (max-width: 800px) {
   body:not(.pagesjs) {
     padding: initial;
-    main, .body { padding: 0 .5em 0; }
+    main, .body:not(main > *) { padding: 0 .5em 0; }
     :not(pre) > code { word-break: break-word; }
     .quote-left, .quote-right {
       width: inherit;
