@@ -2,6 +2,7 @@
 document.querySelectorAll('pre,table,#TableOfContents').forEach(node => {
   function fullwidth(el) {
     el.classList.add('fullwidth');
+    el.dataset.autoFullwidth = '';  // so sidenotes.js only undoes what we added
   }
   // skip if already in .fullwidth container (or .tabset)
   if (node.closest('.fullwidth,.tabset')) return;

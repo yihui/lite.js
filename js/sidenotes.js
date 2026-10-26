@@ -34,9 +34,10 @@
   });
   // also add side classes to TOC
   d.getElementById('TOC')?.classList.add('side', 'side-left');
-  // if a sidenote collapses with any fullwidth element, remove the side class
+  // if a sidenote collapses with an auto-added fullwidth element, remove its fullwidth class
+  // (a user-specified .fullwidth is kept)
   const sides = d.querySelectorAll('.side.side-right, .side.side-left'), fulls = [];
-  d.querySelectorAll('.fullwidth').forEach(el => {
+  d.querySelectorAll('[data-auto-fullwidth]').forEach(el => {
     fulls.push([el, el.getBoundingClientRect()]);
   });
   // add a class to document body if it has sidenotes
