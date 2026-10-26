@@ -1,7 +1,7 @@
 body {
   font-family: Palatino, Georgia, serif;
 }
-.footnotes, code, .side, .body .side, .chapter-toc {
+.footnotes, .side, .body .side, .chapter-toc {
   font-size: .85em;
 }
 .frontmatter, .chapter {
