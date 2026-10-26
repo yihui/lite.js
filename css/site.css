@@ -1,4 +1,4 @@
-nav {
+.site-nav {
   & > p {
     display: flex;
     flex-wrap: wrap;
@@ -30,7 +30,7 @@ footer {
     gap: 2em;
   }
 }
-:is(nav, footer) a {
+:is(.site-nav, footer) a {
   text-decoration: none;
 }
 .body, .frontmatter, .body ~ .appendix {
