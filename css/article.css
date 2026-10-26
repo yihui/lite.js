@@ -98,7 +98,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
     }
     & > ul > li:has(.active) {
       background: #fff;
-      padding: 4px 2px;
+      padding: 4px 2px 4px 0;
     }
     li li .active {
       border-left: 3px solid;
