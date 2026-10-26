@@ -22,7 +22,7 @@ body {
     margin-top: -1em;
   }
 }
-@media (min-width: 1264.02px) {
+@media (min-width: 79.002em) {
   body:not(.pagesjs) .chapter-toc {
     display: none;
   }

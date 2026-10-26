@@ -1,8 +1,8 @@
 :root, .pagesjs {
-  --side-width: 200px;
+  --side-width: 12.5rem;
   --side-gap: 2em;
 }
-@media (min-width: 1500px) { :root { --side-width: 300px; } }
+@media (min-width: 93.75em) { :root { --side-width: 18.75rem; } }
 body {
   --side-margin: calc(0px - var(--side-width) - var(--side-gap));
 }
@@ -81,8 +81,8 @@ div:not(.body):has(> table) { overflow-x: auto; }
     margin: auto 0;
   }
   & :is(figcaption, .caption) {
-    margin-left: calc(50% - 400px);
-    width: 800px;
+    margin-left: calc(50% - 25rem);
+    width: 50rem;
     padding: 1em 1em 0;
   }
 }
@@ -91,7 +91,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
   &, & figure, & .figure { overflow-x: auto; }
 }
 
-@media (min-width: 1264.02px) {
+@media (min-width: 79.002em) {
   #TOC.side {
     .active {
       color: limegreen;
@@ -120,7 +120,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
     box-sizing: content-box;
   }
 }
-@media (max-width: 1264px) {
+@media (max-width: 79em) {
   body:not(.pagesjs) {
     #TOC {
       border: 1px solid #eee;
@@ -149,7 +149,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
     }
   }
 }
-@media (max-width: 800px) {
+@media (max-width: 50em) {
   body:not(.pagesjs) {
     padding: initial;
     main, .body:not(main > *) { padding: 0 .5em 0; }
