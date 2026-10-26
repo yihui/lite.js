@@ -23,4 +23,4 @@ jobs:
       - run: sudo npm install -g npm@latest
       - run: ./build.sh
       - run: npm publish
-      - run: ./purge.sh || true
+      - run: ./purge.sh

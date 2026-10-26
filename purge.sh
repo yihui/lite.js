@@ -12,5 +12,12 @@ for i in $(git diff --name-only $tag1 $tag2 | grep -E "[.](css|js)$"); do
   fi
 done
 
-# visit the latest index page and make sure it's accessible
-curl -sSfL "https://cdn.jsdelivr.net/npm/@xiee/utils@${tag2}/" | grep ${tag2#v}
+# wait (up to ~10 min) for the new version to show up on jsdelivr
+url="https://cdn.jsdelivr.net/npm/@xiee/utils@${tag2}/"
+trap 'echo "$url"' EXIT
+for i in $(seq 20); do
+  sleep 30
+  curl -sSfL "$url" | grep -q "${tag2#v}" && exit 0
+done
+echo "${tag2} not available on jsdelivr" >&2
+exit 1
