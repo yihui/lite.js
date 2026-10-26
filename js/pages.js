@@ -7,6 +7,7 @@
 
   const tpl = d.createElement('div'), book = $$('h1').length > 1, boxes = [],
     fr_tag = ['TABLE', 'UL', 'OL', 'BLOCKQUOTE'],
+    box_tag = ['DIV', 'NAV', 'HEADER', 'MAIN'],  // wrappers (e.g., <nav id="TOC"> or <div id="TOC">)
     fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
     tb = ['top', 'bottom'].map(i =>
       parseFloat(getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`)) || 0
@@ -74,7 +75,7 @@
     l_code = [];
     const t = el.tagName, c = el.firstElementChild;
     if (t === 'P' || fr_tag.includes(t)) return true;
-    if (t === 'DIV') {
+    if (box_tag.includes(t)) {
       const cs = el.children;
       return (cs.length === 1 && fr_tag.includes(c?.tagName)) ||
         [...cs].filter(c => c.tagName === 'TABLE').length;
@@ -109,8 +110,8 @@
         }
       }
     }
-    if (tag === 'DIV') {
-      // fragment <div>'s children (e.g., #TOC > ul)
+    if (box_tag.includes(tag)) {
+      // fragment a wrapper's children (e.g., #TOC > ul)
       fragChildren(item => {
         // fragment item if it can be further fragmented, otherwise put it back
         el.prepend(item);
