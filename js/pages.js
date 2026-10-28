@@ -87,9 +87,16 @@
   function place(el) {
     for (;;) {
       const c = ctx();
-      endFrag(el); c.append(el);
-      if (box.scrollHeight <= H) return;
-      el = split(el, c);
+      endFrag(el);
+      if (isBigBlock(el)) {
+        // don't attach a big element to the page, since it takes time to style
+        // and lay out all its content just to find out that it does not fit
+        el = split(el, c, 'block');
+      } else {
+        c.append(el);
+        if (box.scrollHeight <= H) return;
+        el = split(el, c);
+      }
       if (!el) return;
       breakPage();
       // TODO: remove possibly duplicated citations: .citation + div > [id^="ref-"]
@@ -103,6 +110,10 @@
     keep && keep.remove();
     nextPage();
     keep && ctx().append(keep);
+  }
+  // is an element a block that is too big to be put on a page as a whole?
+  function isBigBlock(el) {
+    return !['TABLE', 'PRE'].includes(el.tagName) && el.getElementsByTagName('*').length > 300;
   }
   function blank(el) { return !el.firstElementChild && !el.textContent.trim(); }
   // is there anything above el on the page (which means el may go to the next page)?
@@ -160,9 +171,10 @@
   // Put as much of el (which has just overflowed the page in container) as
   // possible into container, and return the rest (detached) if any. Unless el is
   // the first thing on the page, it will be left out entirely if it can't be broken.
-  function split(el, container) {
-    const prev = hasPrev(el), first = !el.classList.contains(fr_cls), k = kindOf(el),
-      r = k && splitters[k](el, container, prev, first);
+  function split(el, container, kind) {
+    // (for a block, prev is determined after it is cut, to avoid laying it out)
+    const k = kind || kindOf(el), prev = k === 'block' ? undefined : hasPrev(el),
+      first = !el.classList.contains(fr_cls), r = k && splitters[k](el, container, prev, first);
     if (!r) return prev && (el.remove(), el);
     const [head, rest] = r;
     if (blank(head)) return head.remove(), rest;  // nothing fits
@@ -181,7 +193,13 @@
   }
   // wrap each run of inline nodes in a block (like an anonymous block box in CSS)
   // so mixed content (e.g., <li>text<ul>...</ul></li>) can be broken as paragraphs
+  const wrapped = new WeakSet(), hold = d.createElement('div');  // hold: a hidden container
+  hold.style.display = 'none';
   function wrapRuns(el) {
+    if (wrapped.has(el)) return;
+    wrapped.add(el);
+    // computed styles are available only in the DOM (but not necessarily on a page)
+    el.isConnected || hold.append(el);
     let run = [];
     function flush() {
       if (run.some(n => n.nodeType === 1 || n.nodeType === 3 && n.nodeValue.trim())) {
@@ -192,6 +210,7 @@
     }
     for (const n of [...el.childNodes]) isInline(n) ? run.push(n) : flush();
     flush();
+    el.parentNode === hold && el.remove();
   }
   const splitters = {block: splitBlock, inline: splitInline, table: splitTable, code: splitCode};
 
@@ -200,11 +219,17 @@
   function splitBlock(el, container, prev, first) {
     wrapRuns(el);
     const head = cut(el, container, first);
+    prev = hasPrev(head);
     let item, partial;
     while (item = el.firstChild) {
-      item.nodeType === 1 && endFrag(item); head.append(item);
-      if (item.nodeType !== 1 || box.scrollHeight <= H) continue;
-      const n = nChild(head), rest = split(item, head);
+      if (item.nodeType !== 1) { head.append(item); continue; }
+      endFrag(item);
+      const big = isBigBlock(item);
+      if (!big) {
+        head.append(item);
+        if (box.scrollHeight <= H) continue;
+      }
+      const n = nChild(head), rest = split(item, head, big ? 'block' : undefined);
       if (rest) { partial = nChild(head) > n; el.prepend(rest); break; }
     }
     // if only about one line (e.g., a legend or the first list item) is left on the
@@ -430,6 +455,7 @@
     dispatchEvent(new Event('pagesjs:before'));
 
     cls.add('pagesjs');
+    d.body.append(hold);
     d.body.insertAdjacentElement('afterbegin', newPage());
     H = box.clientHeight || window.innerHeight; B = box_body.clientHeight || H;  // use window height if box height not specified
 
@@ -520,6 +546,7 @@
           p = $(`.pagesjs-page:has(#${id}) .pagesjs-header`);
         a.dataset.pageNumber = p ? p.dataset.pageNumber : '';
       });
+      hold.remove();
       finished = true;
       dispatchEvent(new Event('pagesjs:after'));
     }
