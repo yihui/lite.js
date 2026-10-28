@@ -53,6 +53,7 @@
     wrap = [],  // the ancestors of the content root (outermost first)
     H, B,  // the height of a page and of its body
     H_min,  // the height of a single-line paragraph
+    main_title,  // the title of the document
     probed,  // the content that is on the probe page (see probe())
     pending,  // the rest of the pagination, which is waiting for the probe
     finished;  // is the pagination finished?
@@ -490,14 +491,13 @@
   function shortTitle(h) {
     return h && (h.dataset.shortTitle || h.innerText);
   }
-  const main = shortTitle($('h1.title, .frontmatter h1, .title, h1')),  // main title
-    ps = (book ? 'h1' : 'h2') + ':not(.frontmatter *)';  // page title selector
+  const ps = (book ? 'h1' : 'h2') + ':not(.pagesjs-front *)';  // page title selector
   // add page number, title, etc. to data-* attributes of page elements
   function numberPages() {
     let page_title, i = 0;
     boxes.forEach(box => {
       if (book) {
-        if ($('.frontmatter', box)) return;  // skip book frontmatter page
+        if ($('.pagesjs-front', box)) return;  // skip book frontmatter page
         $(ps, box) && (page_title = '');  // empty title for first page of chapter
       }
       const N = +box.dataset.pagesOffset || 1;
@@ -505,7 +505,7 @@
       i += N;
       box.classList.add(`page-${i % 2 === 0 ? 'even' : 'odd'}`);
       const info = {
-        'pageNumber': i, 'mainTitle': main, 'pageTitle': page_title
+        'pageNumber': i, 'mainTitle': main_title, 'pageTitle': page_title
       };
       [box.children[0], box.children[2]].forEach(el => {
         for (const key in info) info[key] && (el.dataset[key] = info[key]);
@@ -541,6 +541,12 @@
     if (main) return [main];
     const articles = [...$$('article')].filter(el => !el.parentNode.closest('article'));
     return articles.length ? articles : [d.body];
+  }
+  // The frontmatter (title, author, etc.) of the document is <header> (a child of
+  // <body>) by default, or specified via <body data-pages-front="selector">; it is
+  // put on its own page in a book.
+  function markFrontmatter() {
+    $$(d.body.dataset.pagesFront || 'body > header').forEach(el => el.classList.add('pagesjs-front'));
   }
   // remove the classes of the TOC, footnotes, etc. that put them in the margin on
   // screen but are not suitable for printing
@@ -582,7 +588,7 @@
   }
   // iteratively add elements to pages
   function fillPages(roots, els) {
-    $$('.frontmatter, .abstract, #TOC:not(.chapter-toc)').forEach(el => {
+    $$('.pagesjs-front, .abstract, #TOC:not(.chapter-toc)').forEach(el => {
       (fill(el), book && nextPage());
     });
     roots.forEach((el, i) => {
@@ -604,6 +610,10 @@
     const cls = d.body.classList;
     if (cls.contains('pagesjs')) return;  // already paginated
     dispatchEvent(new Event('pagesjs:before'));
+
+    markFrontmatter();
+    // (get the title while the document is visible, so innerText works)
+    main_title = shortTitle($('h1.title, .pagesjs-front h1, .title, h1'));
 
     cls.add('pagesjs');
     d.body.append(hold);

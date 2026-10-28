@@ -52,12 +52,12 @@ h1 .section-number {
 .body h2 { border-bottom-style: dashed; }
 /* TODO: style for h1.part and printing */
 
-.pagesjs .pagesjs-page:first-child:has(.frontmatter) {
+.pagesjs .pagesjs-page:first-child:has(.pagesjs-front) {
   padding: 0;
   .pagesjs-header, .pagesjs-footer {
     display: none;
   }
-  .frontmatter {
+  .pagesjs-front {
     margin: 0;
     padding: var(--paper-margin-top) var(--paper-margin-right) var(--paper-margin-bottom) var(--paper-margin-left);
     height: 100%;
