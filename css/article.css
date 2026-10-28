@@ -7,7 +7,7 @@ body {
   --side-margin: calc(0px - var(--side-width) - var(--side-gap));
 }
 body, blockquote, .side { background: #fafafa; }
-.body, .body ~ .appendix, .frontmatter, .fullwidth, .embed-left, .embed-right {
+body:not(.pagesjs) .body, .body ~ .appendix, .frontmatter, .fullwidth, .embed-left, .embed-right {
   margin-top: 2em;
   padding: 1em;
   box-shadow: 0 0 8px #ccc;
