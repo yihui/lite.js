@@ -77,6 +77,8 @@
         nextPage()  // create a new empty page
       ));
     } else {
+      // in a book, a chapter (a container of <h1>) starts on a new page
+      if (book && box.innerText !== '' && $('h1', el)) nextPage();
       if (el.innerText.trim() && H - box.scrollHeight < H_min) breakPage();
       place(el);
     }
