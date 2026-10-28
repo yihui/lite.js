@@ -452,10 +452,11 @@
     // temporarily move all elements out of DOM (to speed up rendering single pages)
     const els = [];
     roots.forEach(el => {
-      // move <style>/<link> into <head> so styles can be applied globally
+      // move <style>/<link> into <head> so styles can be applied globally (not
+      // only when they are in the DOM), no matter how deeply they are nested
+      $$('style, link[rel="stylesheet"]', el).forEach(el => d.head.append(el));
       const ch = [...el.children].filter(el => el !== box &&
-        !['SCRIPT', 'NOSCRIPT', 'TEMPLATE'].includes(el.tagName) &&
-        (!['STYLE', 'LINK'].includes(el.tagName) || d.body.prepend(el)));
+        !['SCRIPT', 'NOSCRIPT', 'TEMPLATE'].includes(el.tagName));
       els.push(ch); ch.forEach(el => el.remove());
     });
     function run() {
