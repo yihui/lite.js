@@ -16,11 +16,10 @@
   tpl.innerHTML = `<div class="pagesjs-header"></div>
 <div class="pagesjs-body"></div>
 <div class="pagesjs-footer"></div>`;
-  let box, box_body, box_ctx, box_cls = [], wrap = [], H, B, H_min;  // B: height of page body
+  let box, box_body, box_ctx, wrap = [], H, B, H_min;  // B: height of page body
   function newPage(el) {
     el && !$('.pagesjs-body', el) && el.insertAdjacentHTML('afterbegin', tpl.innerHTML);
     box = el || tpl.cloneNode(true); box_body = box.children[1]; box_ctx = null;
-    box.classList.add(...box_cls);
     boxes.includes(box) || boxes.push(box);  // store new pages in boxes
     return box;
   }
@@ -410,6 +409,18 @@
   let pending;  // the rest of pagination that is waiting for the probe
 
   let finished;  // is the pagination finished?
+  // The content root is specified via <body data-pages-root="selector">, or is
+  // <main> (or an element with role="main"), or the top-level <article> elements,
+  // or <body>. Everything else (e.g., navigation bars) will be hidden.
+  function findRoots() {
+    const sel = d.body.dataset.pagesRoot, x = sel ? [...$$(sel)] : [];
+    if (x.length) return x;
+    const main = $('main, [role="main"]');
+    if (main) return [main];
+    const articles = [...$$('article')].filter(el => !el.parentNode.closest('article'));
+    return articles.length ? articles : [d.body];
+  }
+
   function paginate(sync) {
     // we need to wait for all resources to be fully loaded before paginating
     if (d.readyState !== 'complete') return addEventListener('load', () => paginate(sync));
@@ -445,10 +456,8 @@
       a.dataset.pageNumber = '000';  // placeholder for page numbers
     });
 
-    // content roots: the container(s) of the main content (a chapter if book);
-    // can be specified via <body data-pages-root="selector">
-    let roots = [...$$(d.body.dataset.pagesRoot || '.body')];
-    roots.length || roots.push($('main, [role="main"], article') || d.body);
+    // content roots: the containers of the main content (see findRoots())
+    const roots = findRoots();
     // temporarily move all elements out of DOM (to speed up rendering single pages)
     const els = [];
     roots.forEach(el => {
@@ -465,8 +474,6 @@
         (fill(el), book && nextPage());
       });
       roots.forEach((el, i) => {
-        // preserve book chapter classes if exist
-        box_cls = ['chapter', 'appendix'].filter(i => el.classList.contains(i));
         wrap = ancestors(el); box_ctx = null;
         book && (box.innerText === '' ? newPage(box) : nextPage());
         els[i].forEach(fill);

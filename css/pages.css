@@ -88,8 +88,9 @@
       }
     }
     /* wrappers cloned from the content root and its ancestors: keep their
-       context for CSS selectors, but not their boxes */
-    .pagesjs-wrap {
+       context for CSS selectors, but not their boxes (the same for .body, which
+       can be a chapter in a book) */
+    .pagesjs-wrap, .body {
       display: block !important;
       margin: 0 !important;
       padding: 0 !important;
