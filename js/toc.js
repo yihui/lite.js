@@ -2,7 +2,7 @@
 (d => {
   // find the body of the article
   let b;
-  ['.article', '.body', 'article', '.main', 'body'].forEach(s => {
+  ['.article', 'article', '.main', 'body'].forEach(s => {
     if (!b) b = d.querySelector(s);
   });
   const hs = b.querySelectorAll([1, 2, 3, 4, 5, 6].map(i => `:scope > h${i}`).join(','));

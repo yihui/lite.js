@@ -2,7 +2,7 @@
 (d => {
   // find the body of the article
   let b;
-  ['.article', '.body', 'article', 'body'].forEach(s => {
+  ['.article', 'article', 'body'].forEach(s => {
     if (!b) b = d.querySelector(s);
   });
   const hs = b.querySelectorAll('h1, h2, h3, h4, h5, h6');
