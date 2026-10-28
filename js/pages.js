@@ -59,6 +59,8 @@
     main_title,  // the title of the document
     probed,  // the content that is on the probe page (see probe())
     pending,  // the rest of the pagination, which is waiting for the probe
+    running,  // the generator that does the rest of the pagination (see advance())
+    progress, n_done = 0,  // the progress indicator and the number of finished pages
     finished;  // is the pagination finished?
 
   // --- Page boxes ----------------------------------------------------
@@ -99,6 +101,7 @@
       if (n > 1) box.dataset.pagesOffset = n;
     }
     box.remove();
+    progress && (progress.textContent = `Paginating: ${++n_done} pages done`);
   }
   // calculate how many new pages we need for overflowed content (this is just
   // an estimate; if not accurate, use <div class="pagesjs-page" data-pages-offset="N">
@@ -148,7 +151,7 @@
 
   // --- Putting elements on pages -------------------------------------
 
-  function fill(el) {
+  function* fill(el) {
     // if the element is already a page, just use it as the box
     if (el.classList.contains('pagesjs-page')) {
       nextPage(el, () => nChild(el) > 3 && (
@@ -161,13 +164,13 @@
       // in a book, a chapter (a container of <h1>) starts on a new page
       if (book && box.innerText !== '' && $('h1', el)) nextPage();
       if (el.innerText.trim() && H - box.scrollHeight < H_min) breakPage();
-      place(el);
+      yield* place(el);
     }
   }
 
   // append el to the page, and if it overflows, put as much of it as possible on
   // the page and the rest on the next page(s)
-  function place(el) {
+  function* place(el) {
     for (;;) {
       const c = ctx();
       endFrag(el);
@@ -182,6 +185,7 @@
       }
       if (!el) return;
       breakPage(el);
+      yield;  // (a chance to paint the progress)
       // TODO: remove possibly duplicated citations: .citation + div > [id^="ref-"]
     }
   }
@@ -640,29 +644,39 @@
       // move <style>/<link> into <head> so styles can be applied globally (not
       // only when they are in the DOM), no matter how deeply they are nested
       $$('style, link[rel="stylesheet"]', el).forEach(el => d.head.append(el));
-      const ch = [...el.children].filter(el => el !== box &&
+      const ch = [...el.children].filter(el => ![box, hold, progress].includes(el) &&
         !['SCRIPT', 'NOSCRIPT', 'TEMPLATE'].includes(el.tagName));
       ch.forEach(el => el.remove());
       return ch;
     });
   }
   // iteratively add elements to pages
-  function fillPages(roots, els) {
-    $$('.pagesjs-front, .abstract, #TOC:not(.chapter-toc)').forEach(el => {
-      (fill(el), book && nextPage());
-    });
-    roots.forEach((el, i) => {
+  function* fillPages(roots, els) {
+    for (const el of $$('.pagesjs-front, .abstract, #TOC:not(.chapter-toc)')) {
+      yield* fill(el);
+      book && nextPage();
+    }
+    for (const [i, el] of roots.entries()) {
       wrap = ancestors(el); box_ctx = null;
       book && (box.innerText === '' ? newPage(box) : nextPage());
-      els[i].forEach(fill);
+      for (const child of els[i]) yield* fill(child);
       // clean up container and self if empty
       removeBlank(el.parentNode); removeBlank(el);
-    });
+    }
     finish(box);  // finish the last box
     // unwrap the blocks created for runs of inline nodes
     $$('.pagesjs-run').forEach(el => el.replaceWith(...el.childNodes));
   }
-
+  // Run the rest of the pagination. If it is not sync, do it in slices of 100ms,
+  // so the browser can show the progress in between.
+  function advance(sync) {
+    const t = performance.now();
+    while (!running.next().done) {
+      if (sync || performance.now() - t < 100) continue;
+      return new Promise(go => { requestAnimationFrame(go); setTimeout(go, 50); })
+        .then(() => advance());
+    }
+  }
   function paginate(sync) {
     // we need to wait for all resources to be fully loaded before paginating
     if (d.readyState !== 'complete') return addEventListener('load', () => paginate(sync));
@@ -677,6 +691,12 @@
 
     cls.add('pagesjs');
     d.body.append(hold);
+    if (!sync) {  // a simple indicator to tell users to wait
+      progress = d.createElement('div');
+      progress.className = 'pagesjs-progress';
+      progress.textContent = 'Paginating...';
+      d.body.append(progress);
+    }
     d.body.insertAdjacentElement('afterbegin', newPage());
     H = (box.clientHeight || window.innerHeight) + tol; B = box_body.clientHeight || H;  // use window height if box height not specified
     removeSideClasses();
@@ -685,26 +705,27 @@
     addTocLeaders();
 
     const roots = findRoots(), els = detachContent(roots);
-    function run() {
-      fillPages(roots, els);
+    function* run() {
+      yield* fillPages(roots, els);
       cls.remove('pagesjs-filling');
       numberPages();
       d.body.prepend(...boxes);  // unhide all pages
       numberToc();
-      hold.remove();
+      hold.remove(); progress?.remove();
       finished = true;
       dispatchEvent(new Event('pagesjs:after'));
     }
     // Pagination is async unless it has to be sync (beforeprint). If printing
     // starts while it's pending (e.g., headless printing right after the page is
     // loaded), finish it right away.
-    pending = () => { pending = null; unprobe(); run(); };
-    sync ? pending() : probe(roots, els).then(() => pending?.());
+    pending = sync => { pending = null; unprobe(); running = run(); return advance(sync); };
+    sync ? pending(true) : probe(roots, els).then(() => pending?.());
   }
-
-  // --- Triggering pagination -----------------------------------------
-
-  addEventListener('beforeprint', () => pending ? pending() : paginate(true));
+  addEventListener('beforeprint', () => {
+    if (pending) pending(true);
+    else if (running) while (!running.next().done);  // finish the pagination in progress
+    else paginate(true);
+  });
   // A script that controls the browser can request the pagination by dispatching
   // pagesjs:paginate, and wait for pagesjs:after (which is also dispatched if the
   // pagination was already finished)
