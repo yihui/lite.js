@@ -187,6 +187,7 @@
 }
 .pagesjs-body {
   flex-grow: 1;
+  min-height: 0;  /* don't let the body push the footer down when content overhangs by a few pixels */
   position: relative;
 }
 @media only screen {
