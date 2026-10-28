@@ -407,6 +407,7 @@
   }
   let pending;  // the rest of pagination that is waiting for the probe
 
+  let finished;  // is the pagination finished?
   function paginate(sync) {
     // we need to wait for all resources to be fully loaded before paginating
     if (d.readyState !== 'complete') return addEventListener('load', () => paginate(sync));
@@ -509,6 +510,7 @@
           p = $(`.pagesjs-page:has(#${id}) .pagesjs-header`);
         a.dataset.pageNumber = p ? p.dataset.pageNumber : '';
       });
+      finished = true;
       dispatchEvent(new Event('pagesjs:after'));
     }
     // Pagination is async unless it has to be sync (beforeprint). If printing
@@ -518,6 +520,12 @@
     sync ? pending() : probe(roots, els).then(() => pending?.());
   }
   addEventListener('beforeprint', () => pending ? pending() : paginate(true));
+  // A script that controls the browser can request the pagination by dispatching
+  // pagesjs:paginate, and wait for pagesjs:after (which is also dispatched if the
+  // pagination was already finished)
+  addEventListener('pagesjs:paginate', () => {
+    finished ? dispatchEvent(new Event('pagesjs:after')) : paginate();
+  });
   // use query param ?paged=1 to indicate pagination (press p to toggle)
   const SP = new URLSearchParams(location.search);
   SP.get('paged') && paginate();
