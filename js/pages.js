@@ -232,24 +232,29 @@
       const n = nChild(head), rest = split(item, head, big ? 'block' : undefined);
       if (rest) { partial = nChild(head) > n; el.prepend(rest); break; }
     }
-    // if only about one line (e.g., a legend or the first list item) is left on the
-    // page, and no child was split, move it to the next page with the rest
-    if (prev && !partial && !blank(el) && head.getBoundingClientRect().height < 1.5 * H_min)
-      el.prepend(...head.childNodes);
-    // if all children fit, head is the last piece, which has bottom margin/padding/
-    // border that were hidden when it was measured as a non-last piece; push the
-    // last children out if it's too big now
-    if (blank(el)) {
-      head.classList.add(fr_2);
-      while (box.scrollHeight > H && head.lastElementChild && (nChild(head) > 1 || prev))
-        el.prepend(head.lastElementChild);
-      blank(el) || head.classList.remove(fr_2);
-    }
-    if (el.tagName === 'OL' && nChild(head) && !blank(el)) {
-      // update the start number of <ol> (an item split in half counts once)
-      el.start += nChild(head) - (el.firstElementChild.classList.contains(fr_cls) ? 1 : 0);
-    }
+    prev && !partial && moveShortHead(head, el);
+    blank(el) && fitLastPiece(head, el, prev);
+    el.tagName === 'OL' && nChild(head) && !blank(el) && fixOlStart(head, el);
     return [head, blank(el) ? null : el];
+  }
+  // if only about one line (e.g., a legend or the first list item) is left on the
+  // page, and no child was split, move it to the next page with the rest (el)
+  function moveShortHead(head, el) {
+    if (!blank(el) && head.getBoundingClientRect().height < 1.5 * H_min)
+      el.prepend(...head.childNodes);
+  }
+  // If all children fit, head is the last piece, which has bottom margin/padding/
+  // border that were hidden when it was measured as a non-last piece; push the
+  // last children out (into el) if it is too big now.
+  function fitLastPiece(head, el, prev) {
+    head.classList.add(fr_2);
+    while (box.scrollHeight > H && head.lastElementChild && (nChild(head) > 1 || prev))
+      el.prepend(head.lastElementChild);
+    blank(el) || head.classList.remove(fr_2);
+  }
+  // update the start number of the rest of <ol> (an item split in half counts once)
+  function fixOlStart(head, el) {
+    el.start += nChild(head) - (el.firstElementChild.classList.contains(fr_cls) ? 1 : 0);
   }
   // split <p> by testing if a range fits the current box
   function splitInline(el, container, prev, first) {
