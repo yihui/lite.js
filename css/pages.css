@@ -154,6 +154,18 @@
     }
   }
 }
+.pagesjs > .pagesjs-progress {
+  display: block;
+  position: fixed;
+  top: 1em;
+  right: 1em;
+  z-index: 9999;
+  padding: .3em .8em;
+  border-radius: 1em;
+  background: rgba(0, 0, 0, .75);
+  color: white;
+  font: 14px sans-serif;
+}
 .pagesjs-settle .pagesjs-body {
   /* the probe page that holds all content has sides, but normal pages don't */
   padding: 0 !important;
@@ -205,6 +217,7 @@
   .pagesjs-filling {
     display: block;
     .pagesjs-page {
+      opacity: 0;  /* don't show the page that is being filled (only the progress) */
       height: auto;
       .pagesjs-body:has(.footnotes) {
         margin-bottom: 1em;
