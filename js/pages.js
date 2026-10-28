@@ -678,6 +678,8 @@
     }
   }
   function paginate(sync) {
+    // nobody sees the progress in a headless browser (and printing has to be sync)
+    const quiet = sync || /Headless/.test(navigator.userAgent) || navigator.webdriver;
     // we need to wait for all resources to be fully loaded before paginating
     if (d.readyState !== 'complete') return addEventListener('load', () => paginate(sync));
 
@@ -691,7 +693,7 @@
 
     cls.add('pagesjs');
     d.body.append(hold);
-    if (!sync) {  // a simple indicator to tell users to wait
+    if (!quiet) {  // a simple indicator to tell users to wait
       progress = d.createElement('div');
       progress.className = 'pagesjs-progress';
       progress.textContent = 'Paginating...';
@@ -718,7 +720,7 @@
     // Pagination is async unless it has to be sync (beforeprint). If printing
     // starts while it's pending (e.g., headless printing right after the page is
     // loaded), finish it right away.
-    pending = sync => { pending = null; unprobe(); running = run(); return advance(sync); };
+    pending = sync => { pending = null; unprobe(); running = run(); return advance(sync || quiet); };
     sync ? pending(true) : probe(roots, els).then(() => pending?.());
   }
   addEventListener('beforeprint', () => {
