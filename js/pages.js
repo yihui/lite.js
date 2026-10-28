@@ -667,12 +667,12 @@
     // unwrap the blocks created for runs of inline nodes
     $$('.pagesjs-run').forEach(el => el.replaceWith(...el.childNodes));
   }
-  // Run the rest of the pagination. If it is not sync, do it in slices of 100ms,
-  // so the browser can show the progress in between.
+  // Run the rest of the pagination. If it is not sync, do it in slices of 0.5s,
+  // so the browser can show the progress in between (not too often, to save time).
   function advance(sync) {
     const t = performance.now();
     while (!running.next().done) {
-      if (sync || performance.now() - t < 100) continue;
+      if (sync || performance.now() - t < 500) continue;
       return new Promise(go => { requestAnimationFrame(go); setTimeout(go, 50); })
         .then(() => advance());
     }
