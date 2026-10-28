@@ -402,20 +402,27 @@
   // split table rows
   function splitTable(el, container, prev, first) {
     const head = cut(el, container, first), tb = el.tBodies[0], tb2 = tb.cloneNode(),
-      rows = [...tb.rows];
+      rows = [...tb.rows], n = rows.length, min = prev ? 0 : 1;
     head.append(tb2);
     // copy table header and footer
     [el.tHead, el.tFoot].forEach(t => t && head.append(t.cloneNode(true)));
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      tb2.append(row);
-      if (box.offsetHeight > H) {
-        if (i > 0 || prev) tb.prepend(row);
-        // clear the clone if current page can't fit even one row
-        if (i === 0 && prev) head.innerHTML = '';
-        break;
+    // Put all rows in the page and lay them out once. The rows whose bottoms are
+    // below (the bottom of the last row - the overflow) do not fit; put them back.
+    tb2.append(...rows);
+    const over = box.getBoundingClientRect().height - H - .5;  // (see fitLines())
+    if (over >= 0) {
+      const limit = rows[n - 1].getBoundingClientRect().bottom - over;
+      let lo = 0, hi = n;  // the first row that is below the limit (by bisection)
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        rows[mid].getBoundingClientRect().bottom <= limit ? lo = mid + 1 : hi = mid;
       }
+      let k = Math.max(lo, min);
+      tb.prepend(...rows.slice(k));
+      while (k > min && box.offsetHeight > H) tb.prepend(rows[--k]);  // make sure they fit
     }
+    // clear the clone if current page can't fit even one row
+    tb2.rows.length || (head.innerHTML = '');
     // avoid a single row on either page
     const m = tb2.rows.length;
     if (tb.rows.length === 1 && m > 1 || m === 1 && prev && tb.rows.length) {
@@ -424,7 +431,6 @@
     }
     return [head, tb.rows.length ? el : null];
   }
-
   // split lines in <code> and move as many lines into the clone as possible
   function splitCode(el, container, prev, first) {
     const code = el.firstElementChild, lines = codeLines(el);
