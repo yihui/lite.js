@@ -427,14 +427,13 @@
 
   // split lines in <code> and move as many lines into the clone as possible
   function splitCode(el, container, prev, first) {
-    const code = el.firstElementChild, lines = codeLines(el),
-      h = code.offsetHeight / lines.length;  // approx line height
+    const code = el.firstElementChild, lines = codeLines(el);
     // other children go to the first piece, except those after <code> in the normal
     // flow (e.g., a link to the output), which go to the last piece
     const kids = [...el.children], tail = kids.filter((c, j) => j > kids.indexOf(code) && inFlow(getComputedStyle(c)));
     const head = cut(el, container, first), code2 = code.cloneNode();
     head.append(code2, ...kids.filter(c => c !== code && !tail.includes(c)));
-    let i = fitLines(code2, lines, h, prev);
+    let i = fitLines(code2, lines, prev);
     // avoid a single line on either page
     if (i > 1 && lines.length - i === 1) i--;
     if (i === 1 && prev) i = 0;
@@ -445,30 +444,41 @@
     i && head.append(...tail);
     return [head, null];
   }
-
-  // figure out how many lines can fit the box via bisection
-  function fitLines(el, lines, h, prev) {
-    let i = 1, i1 = 1, n = lines.length, i2 = n + 2;
-    const sols = [];  // solutions tried
-    while (i2 > i1 + 1) {
-      el.innerHTML = lines.slice(0, i).join('\n');
-      const delta = H - box.offsetHeight;
-      if (delta === 0) return i;
-      if (delta < 0) {
-        if (i <= 1) return prev ? 0 : 1;
-        i2 = i;
-      } else {
-        if (i >= n) return i;
-        i1 = i;
+  // Figure out how many lines can fit the box. Instead of guessing and testing
+  // different numbers of lines, put all lines in <code> and lay them out once, and
+  // read the positions of the line breaks, which tells how many lines are below
+  // the bottom of the page. (Lines are balanced, so their line breaks are in the
+  // text nodes that are children of <code>.)
+  function fitLines(code, lines, prev) {
+    const n = lines.length, min = prev ? 0 : 1;
+    code.innerHTML = lines.join('\n');
+    // (the page fits if its height is rounded to H or less, i.e., it is < H + .5)
+    const over = box.getBoundingClientRect().height - H - .5;
+    if (over < 0) return n;
+    const r = d.createRange(), bottoms = [];  // the bottom of each line
+    code.childNodes.forEach(node => {
+      if (node.nodeType !== 3) return;
+      for (let i = node.data.indexOf('\n'); i >= 0; i = node.data.indexOf('\n', i + 1)) {
+        r.setStart(node, i); r.setEnd(node, i + 1);
+        bottoms.push(r.getBoundingClientRect().bottom);
       }
-      sols.push(i);
-      // estimate the number of (more or less) lines needed
-      const i3 = Math.min(Math.max(i + Math.round(delta / h), 1), n);
-      // if a solution has been tried, shorten step and (in/de)crement by 1
-      i = sols.includes(i3) ? i + (delta > 0 ? 1 : -1) : i3;
-      (delta > 0 && i >= n) && (i2 = n + 2, i = n);
+    });
+    // the bottom of the last line (which has no line break), and the space after it
+    r.selectNodeContents(code);
+    const rects = r.getClientRects(), last = rects[rects.length - 1].bottom;
+    bottoms.push(last);
+    // the lines whose bottoms are not below (the bottom of the last line - over)
+    let i = 0;
+    while (i < n && bottoms[i] <= last - over) i++;
+    // blank lines at the end don't take space, so don't leave them to the next page
+    while (i && i < n && !lines[i].trim()) i++;
+    code.innerHTML = lines.slice(0, Math.max(i, min)).join('\n');
+    // make sure that the lines fit (e.g., when the line break is not at the bottom
+    // of a line)
+    while (i > min && box.offsetHeight > H) {
+      code.innerHTML = lines.slice(0, --i).join('\n');
     }
-    return i1;
+    return Math.max(i, min);
   }
 
   // --- Letting content settle before measuring it --------------------
