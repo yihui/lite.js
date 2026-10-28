@@ -33,7 +33,7 @@ footer {
 :is(.site-nav, footer) a {
   text-decoration: none;
 }
-.body, .frontmatter, .body ~ .appendix {
+.body:not(.pagesjs *), .frontmatter, .body ~ .appendix {
   box-shadow: none;
   margin-top: auto;
 }
