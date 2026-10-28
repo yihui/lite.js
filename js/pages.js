@@ -225,6 +225,11 @@
       line.replace(/<(\/?)([a-z][\w-]*)[^>]*>/gi, (m, c, t) => {
         c ? open.pop() : open.push([m, t]);
       });
+  // is an element a part of the text (inline, and not a float, etc.)?
+  function inTextFlow(el) {
+    const cs = getComputedStyle(el);
+    return (cs.display.startsWith('inline') || cs.display === 'contents') && inFlow(cs);
+  }
       return start + line + open.map(t => `</${t[1]}>`).reverse().join('');
     });
   }
@@ -366,8 +371,8 @@
     while (node = walker.nextNode()) {
       const t = node.tagName;
       if (t) {
-        if (t === 'MJX-CONTAINER' || (t === 'SPAN' && $('.katex', node)) || !isInline(node)) {
-          node = walker.nextSibling();  // skip blocks (footnotes) and math
+        if (t === 'MJX-CONTAINER' || (t === 'SPAN' && $('.katex', node)) || !inTextFlow(node)) {
+          node = walker.nextSibling();  // skip blocks and floats (footnotes) and math
           if (!node) break;
         }
         if (node.firstChild) continue;  // for element nodes, traverse to bottom
