@@ -134,9 +134,19 @@ pre:has(code[data-file]) {
   &:has(code[data-source])::before {
     content: "♧ Source";
   }
-  &.pagesjs-fragmented:first-child {
-    &::before, code::before {
-      content: unset;
+  /* pieces of a code block split across pages: label only on the first piece,
+     and no border on the sides where it is cut */
+  &.pagesjs-fragmented {
+    &:not(.fragment-first) {
+      &::before, code::before {
+        content: unset;
+      }
+      code {
+        border-top: none;
+      }
+    }
+    &:not(.fragment-last) code {
+      border-bottom: none;
     }
   }
   code, &::before {

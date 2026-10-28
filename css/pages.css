@@ -87,19 +87,44 @@
         }
       }
     }
-    & > .pagesjs-body > .pagesjs-fragmented {
+    /* wrappers cloned from the content root and its ancestors: keep their
+       context for CSS selectors, but not their boxes */
+    .pagesjs-wrap {
+      display: block !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      background: none !important;
+      width: auto !important;
+      max-width: none !important;
+      min-height: 0 !important;
+      height: auto !important;
+      float: none !important;
+      position: static !important;
+      transform: none !important;
+    }
+    .pagesjs-run {
+      display: block;
+    }
+    /* pieces of a fragmented element: slice it (instead of decorating each piece) */
+    .pagesjs-fragmented {
       &:not(.fragment-first) {
-        &, & .pagesjs-fragmented {
-          border-top: none;
-          & > thead { opacity: .5; }
-        }
+        border-top: none;
+        margin-top: 0;
+        padding-top: 0;
+        & > thead { opacity: .5; }
       }
       &:not(.fragment-last) {
-        &, & .pagesjs-fragmented {
-          border-bottom: none;
-          & > tfoot { opacity: .5; }
-        }
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+        & > tfoot { opacity: .5; }
       }
+    }
+    /* a list item continued from the previous page has no marker */
+    li.pagesjs-fragmented:not(.fragment-first)::marker {
+      content: "";
     }
     .fullwidth {
       float: none;
@@ -128,6 +153,10 @@
       background: none;
     }
   }
+}
+.pagesjs-settle .pagesjs-body {
+  /* the probe page that holds all content has sides, but normal pages don't */
+  padding: 0 !important;
 }
 .pagesjs-header, .pagesjs-footer {
   font-size: .9em;
