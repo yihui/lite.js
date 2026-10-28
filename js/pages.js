@@ -32,6 +32,9 @@
     atomic = 'h1,h2,h3,h4,h5,h6,hr,img,svg,video,canvas,iframe,object,embed,math,mjx-container,figure,.figure,details',
     // classes of the pieces of a broken element
     fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
+    // pixels that the content may hang over the bottom of a page (the page has a
+    // much larger padding there), since sizes are rounded and the browsers differ
+    tol = 3,
     // top/bottom page margin
     tb = ['top', 'bottom'].map(i =>
       parseFloat(getComputedStyle(d.documentElement).getPropertyValue(`--paper-margin-${i}`)) || 0
@@ -91,7 +94,7 @@
   function finish(box) {
     const h = box.scrollHeight;
     // tolerate a few pixels (and the margin of the last element) hanging over the page bottom
-    if (h - Math.max(3, trailingMargin(box.children[1])) > H && !box.dataset.pagesOffset) {
+    if (h - trailingMargin(box.children[1]) > H && !box.dataset.pagesOffset) {
       const n = calcPages(box, h);
       if (n > 1) box.dataset.pagesOffset = n;
     }
@@ -675,7 +678,7 @@
     cls.add('pagesjs');
     d.body.append(hold);
     d.body.insertAdjacentElement('afterbegin', newPage());
-    H = box.clientHeight || window.innerHeight; B = box_body.clientHeight || H;  // use window height if box height not specified
+    H = (box.clientHeight || window.innerHeight) + tol; B = box_body.clientHeight || H;  // use window height if box height not specified
     removeSideClasses();
     cls.add('pagesjs-filling');
     measureMinHeight();
