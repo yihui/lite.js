@@ -66,6 +66,23 @@
     boxes.includes(box) || boxes.push(box);  // store new pages in boxes
     return box;
   }
+  // The margin at the end of the content of a page is truncated at the end of the
+  // page (like in CSS fragmentation), so it should not count when the content is
+  // tested if it fits the page. It is the margin of the last element and its last
+  // descendants, until one with padding/border at the bottom.
+  function trailingMargin(body = box_body) {
+    let m = 0;
+    for (let e = body.lastElementChild; e; e = e.lastElementChild) {
+      const cs = getComputedStyle(e);
+      m = Math.max(m, parseFloat(cs.marginBottom) || 0);
+      if (parseFloat(cs.paddingBottom) || parseFloat(cs.borderBottomWidth)) break;
+    }
+    return m;
+  }
+  // the height of the page without the margin at the end of its content
+  function pageHeight() { return box.getBoundingClientRect().height - trailingMargin(); }
+  // does the page overflow?
+  function overflows() { return box.scrollHeight - trailingMargin() > H; }
   // start the next page and finish current page
   function nextPage(el, callback) {
     const cur = box; cur.after(newPage(el)); callback && callback(); finish(cur);
@@ -74,10 +91,7 @@
   function finish(box) {
     const h = box.scrollHeight;
     // tolerate a few pixels (and the margin of the last element) hanging over the page bottom
-    let m = 3;
-    for (let e = box.children[1].lastElementChild; e; e = e.lastElementChild)
-      m = Math.max(m, parseFloat(getComputedStyle(e).marginBottom) || 0);
-    if (h - m > H && !box.dataset.pagesOffset) {
+    if (h - Math.max(3, trailingMargin(box.children[1])) > H && !box.dataset.pagesOffset) {
       const n = calcPages(box, h);
       if (n > 1) box.dataset.pagesOffset = n;
     }
@@ -160,7 +174,7 @@
         el = split(el, c, 'block');
       } else {
         c.append(el);
-        if (box.scrollHeight <= H) return;
+        if (!overflows()) return;
         el = split(el, c);
       }
       if (!el) return;
@@ -309,7 +323,7 @@
       const big = isBigBlock(item);
       if (!big) {
         head.append(item);
-        if (box.scrollHeight <= H) continue;
+        if (!overflows()) continue;
       }
       const n = nChild(head), rest = split(item, head, big ? 'block' : undefined);
       if (rest) { partial = nChild(head) > n; el.prepend(rest); break; }
@@ -331,7 +345,7 @@
   // last children out (into el) if it is too big now.
   function fitLastPiece(head, el, prev) {
     head.classList.add(fr_2);
-    while (box.scrollHeight > H && head.lastElementChild && (nChild(head) > 1 || prev))
+    while (overflows() && head.lastElementChild && (nChild(head) > 1 || prev))
       el.prepend(head.lastElementChild);
     blank(el) || head.classList.remove(fr_2);
   }
@@ -358,7 +372,7 @@
     // the first thing on the page)
     while (k > (prev ? 0 : 1)) {
       cutLine();
-      if (k > 0 && box.scrollHeight <= H) break;
+      if (k > 0 && !overflows()) break;
     }
     // avoid a widow (single last line on the next page) and an orphan (single
     // first line at the bottom of the page)
@@ -423,7 +437,7 @@
     // Put all rows in the page and lay them out once. The rows whose bottoms are
     // below (the bottom of the last row - the overflow) do not fit; put them back.
     tb2.append(...rows);
-    const over = box.getBoundingClientRect().height - H - .5;  // (see fitLines())
+    const over = pageHeight() - H - .5;  // (see fitLines())
     if (over >= 0) {
       const limit = rows[n - 1].getBoundingClientRect().bottom - over;
       let lo = 0, hi = n;  // the first row that is below the limit (by bisection)
@@ -433,7 +447,7 @@
       }
       let k = Math.max(lo, min);
       tb.prepend(...rows.slice(k));
-      while (k > min && box.offsetHeight > H) tb.prepend(rows[--k]);  // make sure they fit
+      while (k > min && pageHeight() > H + .5) tb.prepend(rows[--k]);  // make sure they fit
     }
     // clear the clone if current page can't fit even one row
     tb2.rows.length || (head.innerHTML = '');
@@ -473,7 +487,7 @@
     const n = lines.length, min = prev ? 0 : 1;
     code.innerHTML = lines.join('\n');
     // (the page fits if its height is rounded to H or less, i.e., it is < H + .5)
-    const over = box.getBoundingClientRect().height - H - .5;
+    const over = pageHeight() - H - .5;
     if (over < 0) return n;
     const r = d.createRange(), bottoms = [];  // the bottom of each line
     code.childNodes.forEach(node => {
@@ -495,7 +509,7 @@
     code.innerHTML = lines.slice(0, Math.max(i, min)).join('\n');
     // make sure that the lines fit (e.g., when the line break is not at the bottom
     // of a line)
-    while (i > min && box.offsetHeight > H) {
+    while (i > min && pageHeight() > H + .5) {
       code.innerHTML = lines.slice(0, --i).join('\n');
     }
     return Math.max(i, min);
