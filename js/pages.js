@@ -164,18 +164,27 @@
         el = split(el, c);
       }
       if (!el) return;
-      breakPage();
+      breakPage(el);
       // TODO: remove possibly duplicated citations: .citation + div > [id^="ref-"]
     }
   }
 
-  // start a new page, but don't leave a heading alone at the bottom of the page
-  function breakPage() {
-    const h = ctx().lastElementChild;
-    const keep = h?.matches('h1,h2,h3,h4,h5,h6') && hasPrev(h) && h;
+  // Start a new page, but don't leave a heading alone at the bottom of the page.
+  // The heading may be the last child of a piece of a broken element (e.g., a
+  // chapter), in which case it goes back to the rest of the element (if provided).
+  function breakPage(rest) {
+    let parent = ctx(), h = parent.lastElementChild, depth = 0;
+    const isHeading = e => e?.matches('h1,h2,h3,h4,h5,h6');
+    while (rest && h && !isHeading(h) && h.classList.contains(fr_cls)) {
+      parent = h; h = h.lastElementChild; depth++;
+    }
+    const keep = isHeading(h) && hasPrev(h) && h;
     keep && keep.remove();
     nextPage();
-    keep && ctx().append(keep);
+    if (!keep) return;
+    let target = rest;  // the rest of the container of the heading
+    for (let i = 1; i < depth && target; i++) target = target.firstElementChild;
+    target?.tagName === parent.tagName && depth ? target.prepend(keep) : ctx().append(keep);
   }
   // Put as much of el (which has just overflowed the page in container) as
   // possible into container, and return the rest (detached) if any. Unless el is
@@ -216,6 +225,11 @@
     const cs = getComputedStyle(n), v = cs.display;
     return v.startsWith('inline') || v === 'none' || v === 'contents' || !inFlow(cs);
   }
+  // is an element a part of the text (inline, and not a float, etc.)?
+  function inTextFlow(el) {
+    const cs = getComputedStyle(el);
+    return (cs.display.startsWith('inline') || cs.display === 'contents') && inFlow(cs);
+  }
   // lines of <pre><code>; tags open at the end of a line (e.g., a multi-line
   // comment) are closed there and reopened on the next line, so each line is balanced
   function codeLines(pre) {
@@ -225,11 +239,6 @@
       line.replace(/<(\/?)([a-z][\w-]*)[^>]*>/gi, (m, c, t) => {
         c ? open.pop() : open.push([m, t]);
       });
-  // is an element a part of the text (inline, and not a float, etc.)?
-  function inTextFlow(el) {
-    const cs = getComputedStyle(el);
-    return (cs.display.startsWith('inline') || cs.display === 'contents') && inFlow(cs);
-  }
       return start + line + open.map(t => `</${t[1]}>`).reverse().join('');
     });
   }
