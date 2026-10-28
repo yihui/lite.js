@@ -604,11 +604,14 @@
 
   // The content root is specified via <body data-pages-root="selector">, or is
   // <main> (or an element with role="main"), or the top-level <article> elements,
-  // or <body>. Everything else (e.g., navigation bars) will be hidden.
+  // or <body>. If <main> only has a child (e.g., <article>), the child is the root
+  // (and so on). Everything else (e.g., navigation bars) will be hidden.
   function findRoots() {
     const sel = d.body.dataset.pagesRoot, x = sel ? [...$$(sel)] : [];
     if (x.length) return x;
-    const main = $('main, [role="main"]');
+    let main = $('main, [role="main"]');
+    // if it only contains a wrapper (e.g., an <article>), use the wrapper instead
+    while (main?.childElementCount === 1) main = main.firstElementChild;
     if (main) return [main];
     const articles = [...$$('article')].filter(el => !el.parentNode.closest('article'));
     return articles.length ? articles : [d.body];
