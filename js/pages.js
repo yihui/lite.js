@@ -358,12 +358,10 @@
     const r = d.createRange(), ends = [{node: el, i: 0}];
     const walker = d.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     let node, prev;
-    function collectEnds(el, i) {
-      const rect = el.getBoundingClientRect();
-      // if the previous el is at top-right of current el, assume line
-      // ends before current el (TODO: how about RTL languages?)
-      prev && prev.bottom <= rect.top && prev.right > rect.left && ends.push({node, i});
-      prev = rect;
+    // if the previous rect is at top-right of current rect, assume a line ends
+    // before the current one (TODO: how about RTL languages?)
+    function newLine(rect) {
+      return prev && prev.bottom <= rect.top && prev.right > rect.left;
     }
     while (node = walker.nextNode()) {
       const t = node.tagName;
@@ -375,17 +373,32 @@
         if (node.firstChild) continue;  // for element nodes, traverse to bottom
       }
       if (node.tagName) {
-        collectEnds(node, -1);
-      } else {
-        const txt = node.textContent;
-        if (txt.trim()) for (let i = 0; i < txt.length; i++) {
-          r.setStart(node, i); r.setEnd(node, i + 1); collectEnds(r, i);
-        }
+        const rect = node.getBoundingClientRect();
+        newLine(rect) && ends.push({node, i: -1});
+        prev = rect;
+      } else if (node.textContent.trim()) {
+        // a text node has one rect per line, and a new line starts at the first
+        // character that makes the range of the text have one more rect
+        r.selectNodeContents(node);
+        const rects = r.getClientRects();
+        if (!rects.length) continue;
+        newLine(rects[0]) && ends.push({node, i: 0});
+        for (let k = 1; k < rects.length; k++) ends.push({node, i: lineOffset(node, k, r)});
+        prev = rects[rects.length - 1];
       }
     }
     return ends;
   }
-
+  // the offset of the first character on the k-th line of a text node (via bisection)
+  function lineOffset(node, k, r) {
+    let lo = 0, hi = node.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      r.setStart(node, 0); r.setEnd(node, mid);
+      r.getClientRects().length > k ? hi = mid : lo = mid + 1;
+    }
+    return lo - 1;  // (the range ends after the first character of the line)
+  }
   // split table rows
   function splitTable(el, container, prev, first) {
     const head = cut(el, container, first), tb = el.tBodies[0], tb2 = tb.cloneNode(),
