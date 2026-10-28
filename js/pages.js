@@ -130,7 +130,7 @@
   }
   // The container for the content on the current page. It is a chain of empty
   // clones of the content root and its ancestors (i.e., the original context), so
-  // CSS selectors that depend on them (e.g., `.body h2`) still apply on pages.
+  // CSS selectors that depend on them (e.g., `main h2`) still apply on pages.
   function ctx() {
     if (!wrap.length) return box_body;
     if (!box_ctx || !box_body.contains(box_ctx)) {
@@ -335,12 +335,19 @@
       const n = nChild(head), rest = split(item, head, big ? 'block' : undefined);
       if (rest) { partial = nChild(head) > n; el.prepend(rest); break; }
     }
+    blank(el) || moveTrailingHeadings(head, el, prev);
     prev && !partial && moveShortHead(head, el);
     blank(el) && fitLastPiece(head, el, prev);
     el.tagName === 'OL' && nChild(head) && !blank(el) && fixOlStart(head, el);
     return [head, blank(el) ? null : el];
   }
 
+  // a heading should not be the last child of a piece that is continued, so move it
+  // (and the headings before it) to the rest (el)
+  function moveTrailingHeadings(head, el, prev) {
+    for (let h; (h = head.lastElementChild)?.matches('h1,h2,h3,h4,h5,h6') && (nChild(head) > 1 || prev);)
+      el.prepend(h);
+  }
   // if only about one line (e.g., a legend or the first list item) is left on the
   // page, and no child was split, move it to the next page with the rest (el)
   function moveShortHead(head, el) {
