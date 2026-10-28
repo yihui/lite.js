@@ -1,7 +1,7 @@
 body {
   font-family: Palatino, Georgia, serif;
 }
-.footnotes, .side, .body .side, .chapter-toc {
+.footnotes, .side, article .side, .chapter-toc {
   font-size: .85em;
 }
 .frontmatter, .chapter {
@@ -49,7 +49,7 @@ h1 .section-number {
   border-bottom: 4px solid;
   margin-bottom: -4px;
 }
-.body h2 { border-bottom-style: dashed; }
+article h2 { border-bottom-style: dashed; }
 /* TODO: style for h1.part and printing */
 
 .pagesjs .pagesjs-page:first-child:has(.pagesjs-front) {

@@ -7,14 +7,15 @@ body {
   --side-margin: calc(0px - var(--side-width) - var(--side-gap));
 }
 body, blockquote, .side { background: #fafafa; }
-.body:not(.pagesjs *), .body ~ .appendix, .frontmatter, .fullwidth, .embed-left, .embed-right {
+/* a card: an article (or appendix) that is not inside another article */
+:where(article, .appendix):not(article *, .pagesjs *), .frontmatter, .fullwidth, .embed-left, .embed-right {
   margin-top: 2em;
   padding: 1em;
   box-shadow: 0 0 8px #ccc;
   background: #fff;
 }
-.appendix, .footnotes, .body .side { font-size: .9em; }
-.body ~ .appendix, .frontmatter { background: none; }
+.appendix, .footnotes, article .side { font-size: .9em; }
+.appendix, .frontmatter { background: none; }
 .appendix h2 { border-bottom: 1px dashed #666; }
 #TOC { top: 0; }
 .bg-number {
@@ -23,7 +24,7 @@ body, blockquote, .side { background: #fafafa; }
   background: lightslategray;
   color: #fff;
 }
-div:not(.body):has(> table) { overflow-x: auto; }
+div:has(> table) { overflow-x: auto; }
 
 /* left/right elements*/
 .side {
@@ -37,7 +38,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
   clear: left;
   margin-left: var(--side-margin);
   position: sticky;
-  &:not(.body > *) {
+  &:not(article > *) {
     margin-left: calc(var(--side-margin) + 1em);
   }
 }
@@ -130,7 +131,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
       float: none;
     }
     .side { width: 100%; max-height: none; }
-    :is(main, .body) .side {
+    main .side {
       padding: 0 2em;
       color: darkslategray;
     }
@@ -152,7 +153,7 @@ div:not(.body):has(> table) { overflow-x: auto; }
 @media (max-width: 50em) {
   body:not(.pagesjs) {
     padding: initial;
-    main, .body:not(main > *) { padding: 0 .5em 0; }
+    :where(article, .appendix):not(article *) { padding: 0 .5em; }
     :not(pre) > code { word-break: break-word; }
     .quote-left, .quote-right {
       width: inherit;
