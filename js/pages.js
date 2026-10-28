@@ -446,6 +446,96 @@
     return articles.length ? articles : [d.body];
   }
 
+  // remove the classes of the TOC, footnotes, etc. that put them in the margin on
+  // screen but are not suitable for printing
+  function removeSideClasses() {
+    $$(':is(#TOC, .footnotes, .chapter-before, .chapter-after):is(.side-left, .side-right).side').forEach(el => {
+      el.classList.remove('side', 'side-left', 'side-right');
+    });
+  }
+  // test how much space a single-line paragraph needs
+  function measureMinHeight() {
+    const p = d.createElement('p'), H0 = box.scrollHeight;
+    p.innerText = 'A'; box_body.append(p);
+    H_min = box.scrollHeight - H0; p.remove();
+  }
+  // add dot leaders to TOC (page numbers will be added after the pages are ready)
+  function addTocLeaders() {
+    $$('#TOC a[href^="#"]').forEach(a => {
+      const s = d.createElement('span');  // move TOC item content into a span
+      s.className = 'toc-text'; a.append(s);
+      let c; while (c = s.previousSibling) {
+        // exclude section number spans
+        if (c.classList?.contains('section-number')) break; s.prepend(c);
+      }
+      a.dataset.pageNumber = '000';  // placeholder for page numbers
+    });
+  }
+  // take the children of the roots out of the DOM (to speed up rendering single
+  // pages), and return them
+  function detachContent(roots) {
+    return roots.map(el => {
+      // move <style>/<link> into <head> so styles can be applied globally (not
+      // only when they are in the DOM), no matter how deeply they are nested
+      $$('style, link[rel="stylesheet"]', el).forEach(el => d.head.append(el));
+      const ch = [...el.children].filter(el => el !== box &&
+        !['SCRIPT', 'NOSCRIPT', 'TEMPLATE'].includes(el.tagName));
+      ch.forEach(el => el.remove());
+      return ch;
+    });
+  }
+  // iteratively add elements to pages
+  function fillPages(roots, els) {
+    $$('.frontmatter, .abstract, #TOC:not(.chapter-toc)').forEach(el => {
+      (fill(el), book && nextPage());
+    });
+    roots.forEach((el, i) => {
+      wrap = ancestors(el); box_ctx = null;
+      book && (box.innerText === '' ? newPage(box) : nextPage());
+      els[i].forEach(fill);
+      // clean up container and self if empty
+      removeBlank(el.parentNode); removeBlank(el);
+    });
+    finish(box);  // finish the last box
+    // unwrap the blocks created for runs of inline nodes
+    $$('.pagesjs-run').forEach(el => el.replaceWith(...el.childNodes));
+  }
+  // add page number, title, etc. to data-* attributes of page elements
+  function numberPages() {
+    let page_title, i = 0;
+    boxes.forEach(box => {
+      if (book) {
+        if ($('.frontmatter', box)) return;  // skip book frontmatter page
+        $(ps, box) && (page_title = '');  // empty title for first page of chapter
+      }
+      const N = +box.dataset.pagesOffset || 1;
+      if (N > 1) box.classList.add('page-multiple');
+      i += N;
+      box.classList.add(`page-${i % 2 === 0 ? 'even' : 'odd'}`);
+      const info = {
+        'pageNumber': i, 'mainTitle': main, 'pageTitle': page_title
+      };
+      [box.children[0], box.children[2]].forEach(el => {
+        for (const key in info) info[key] && (el.dataset[key] = info[key]);
+      });
+      // find page title for next page
+      page_title = shortTitle([...$$(ps, box)].pop()) || page_title;
+      let ft;  // first footnote on page
+      // move all footnotes after the page body
+      $$('.footnotes', box).forEach((el, i) => {
+        i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.remove());
+      });
+    });
+  }
+  // add page numbers to TOC with data-* attributes
+  function numberToc() {
+    $$('#TOC a[href^="#"]').forEach(a => {
+      const id = CSS.escape(a.getAttribute('href').replace(/^#/, '')),
+        p = $(`.pagesjs-page:has(#${id}) .pagesjs-header`);
+      a.dataset.pageNumber = p ? p.dataset.pageNumber : '';
+    });
+  }
+
   function paginate(sync) {
     // we need to wait for all resources to be fully loaded before paginating
     if (d.readyState !== 'complete') return addEventListener('load', () => paginate(sync));
@@ -458,94 +548,18 @@
     d.body.append(hold);
     d.body.insertAdjacentElement('afterbegin', newPage());
     H = box.clientHeight || window.innerHeight; B = box_body.clientHeight || H;  // use window height if box height not specified
-
-    // remove possible classes on TOC/footnotes that we don't need for printing
-    $$(':is(#TOC, .footnotes, .chapter-before, .chapter-after):is(.side-left, .side-right).side').forEach(el => {
-      el.classList.remove('side', 'side-left', 'side-right');
-    });
-
+    removeSideClasses();
     cls.add('pagesjs-filling');
+    measureMinHeight();
+    addTocLeaders();
 
-    // test how much space a single-line paragraph needs
-    const p = d.createElement('p'), H0 = box.scrollHeight;
-    p.innerText = 'A'; box_body.append(p);
-    H_min = box.scrollHeight - H0; p.remove();
-
-    // add dot leaders to TOC
-    $$('#TOC a[href^="#"]').forEach(a => {
-      const s = d.createElement('span');  // move TOC item content into a span
-      s.className = 'toc-text'; a.append(s);
-      let c; while (c = s.previousSibling) {
-        // exclude section number spans
-        if (c.classList?.contains('section-number')) break; s.prepend(c);
-      }
-      a.dataset.pageNumber = '000';  // placeholder for page numbers
-    });
-
-    // content roots: the containers of the main content (see findRoots())
-    const roots = findRoots();
-    // temporarily move all elements out of DOM (to speed up rendering single pages)
-    const els = [];
-    roots.forEach(el => {
-      // move <style>/<link> into <head> so styles can be applied globally (not
-      // only when they are in the DOM), no matter how deeply they are nested
-      $$('style, link[rel="stylesheet"]', el).forEach(el => d.head.append(el));
-      const ch = [...el.children].filter(el => el !== box &&
-        !['SCRIPT', 'NOSCRIPT', 'TEMPLATE'].includes(el.tagName));
-      els.push(ch); ch.forEach(el => el.remove());
-    });
+    const roots = findRoots(), els = detachContent(roots);
     function run() {
-      // iteratively add elements to pages
-      $$('.frontmatter, .abstract, #TOC:not(.chapter-toc)').forEach(el => {
-        (fill(el), book && nextPage());
-      });
-      roots.forEach((el, i) => {
-        wrap = ancestors(el); box_ctx = null;
-        book && (box.innerText === '' ? newPage(box) : nextPage());
-        els[i].forEach(fill);
-        // clean up container and self if empty
-        removeBlank(el.parentNode); removeBlank(el);
-      });
-      finish(box);  // finish the last box
+      fillPages(roots, els);
       cls.remove('pagesjs-filling');
-      // unwrap the blocks created for runs of inline nodes
-      $$('.pagesjs-run').forEach(el => el.replaceWith(...el.childNodes));
-
-      // add page number, title, etc. to data-* attributes of page elements
-      let page_title, i = 0;
-      boxes.forEach(box => {
-        if (book) {
-          if ($('.frontmatter', box)) return;  // skip book frontmatter page
-          $(ps, box) && (page_title = '');  // empty title for first page of chapter
-        }
-        const N = +box.dataset.pagesOffset || 1;
-        if (N > 1) box.classList.add('page-multiple');
-        i += N;
-        box.classList.add(`page-${i % 2 === 0 ? 'even' : 'odd'}`);
-        const info = {
-          'pageNumber': i, 'mainTitle': main, 'pageTitle': page_title
-        };
-        [box.children[0], box.children[2]].forEach(el => {
-          for (const key in info) info[key] && (el.dataset[key] = info[key]);
-        });
-        // find page title for next page
-        page_title = shortTitle([...$$(ps, box)].pop()) || page_title;
-        let ft;  // first footnote on page
-        // move all footnotes after the page body
-        $$('.footnotes', box).forEach((el, i) => {
-          i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.remove());
-        });
-      });
-
-      // unhide all pages
-      d.body.prepend(...boxes);
-
-      // add page numbers to TOC with data-* attributes
-      $$('#TOC a[href^="#"]').forEach(a => {
-        const id = CSS.escape(a.getAttribute('href').replace(/^#/, '')),
-          p = $(`.pagesjs-page:has(#${id}) .pagesjs-header`);
-        a.dataset.pageNumber = p ? p.dataset.pageNumber : '';
-      });
+      numberPages();
+      d.body.prepend(...boxes);  // unhide all pages
+      numberToc();
       hold.remove();
       finished = true;
       dispatchEvent(new Event('pagesjs:after'));
