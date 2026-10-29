@@ -15,8 +15,7 @@ body, blockquote, .side { background: #fafafa; }
   box-shadow: 0 0 8px #ccc;
   background: var(--article-bg);
 }
-.appendix, .footnotes, article .side { font-size: .9em; }
-.appendix, .frontmatter { background: none; }
+.side { font-size: .85em; }
 .appendix h2 { border-bottom: 1px dashed var(--rule-color); }
 #TOC { top: 0; }
 .bg-number {

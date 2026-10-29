@@ -1,9 +1,6 @@
 body {
   font-family: Palatino, Georgia, serif;
 }
-.footnotes, .side, article .side, .chapter-toc {
-  font-size: .85em;
-}
 .frontmatter, .chapter {
   min-height: calc(100vh - 1em);
 }
