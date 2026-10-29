@@ -1,6 +1,9 @@
 /* mainly for litedown::pkg_manual() */
-.table-full, h3[id^="sec:arguments"] + table {
+.desc-table {
   width: 100%;
+  border-top: 1px solid #666;
+  border-bottom: 1px solid #666;
+  tr:nth-child(even) { background: whitesmoke; }
   td {
     vertical-align: baseline;
     & > p {
