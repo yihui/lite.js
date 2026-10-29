@@ -28,7 +28,7 @@ body {
   }
 }
 .chapter-toc {
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color);
   border-radius: 5px;
   padding: 1em;
   margin-bottom: 2em;

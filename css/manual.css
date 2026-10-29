@@ -1,9 +1,9 @@
 /* mainly for litedown::pkg_manual() */
 .desc-table {
   width: 100%;
-  border-top: 1px solid #666;
-  border-bottom: 1px solid #666;
-  tr:nth-child(even) { background: #f8f8f8; }
+  border-top: 1px solid var(--rule-color);
+  border-bottom: 1px solid var(--rule-color);
+  tr:nth-child(even) { background: var(--muted-bg); }
   td {
     vertical-align: baseline;
     & > p {

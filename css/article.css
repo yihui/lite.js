@@ -1,6 +1,7 @@
 :root, .pagesjs {
   --side-width: 12.5rem;
   --side-gap: 2em;
+  --article-bg: #fff;
 }
 @media (min-width: 93.75em) { :root { --side-width: 18.75rem; } }
 body {
@@ -12,11 +13,11 @@ body, blockquote, .side { background: #fafafa; }
   margin-top: 2em;
   padding: 1em;
   box-shadow: 0 0 8px #ccc;
-  background: #fff;
+  background: var(--article-bg);
 }
 .appendix, .footnotes, article .side { font-size: .9em; }
 .appendix, .frontmatter { background: none; }
-.appendix h2 { border-bottom: 1px dashed #666; }
+.appendix h2 { border-bottom: 1px dashed var(--rule-color); }
 #TOC { top: 0; }
 .bg-number {
   padding: 1px 5px;
@@ -76,7 +77,7 @@ div:has(> table) { overflow-x: auto; }
   transform: translateX(-50%);
   float: left;
   min-width: 100%;
-  background: #fff;
+  background: var(--article-bg);
   & * {
     max-width: calc(100vw - 4em);
     margin: auto 0;
@@ -98,7 +99,7 @@ div:has(> table) { overflow-x: auto; }
       color: limegreen;
     }
     & > ul > li:has(.active) {
-      background: #fff;
+      background: var(--article-bg);
       padding: 4px 2px 4px 0;
     }
     li li .active {

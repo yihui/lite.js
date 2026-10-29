@@ -1,10 +1,9 @@
 .site-nav {
-  --nav-color: #4682b4;
   & > p {
     display: flex;
     flex-wrap: wrap;
     &:last-child {
-      border-bottom: 1px dashed #666;
+      border-bottom: 1px dashed var(--rule-color);
     }
   }
   a {
@@ -13,11 +12,11 @@
     padding: .2em .5em;
     margin-right: .5em;
     &:hover {
-      background: var(--nav-color);
+      background: var(--accent);
       color: white;
     }
     &[aria-current] {
-      box-shadow: 0 1.5px var(--nav-color), inset 0 -1px var(--nav-color);
+      box-shadow: 0 1.5px var(--accent), inset 0 -1px var(--accent);
       margin-bottom: -1px;
     }
     &.right {
@@ -29,7 +28,7 @@
   }
 }
 footer {
-  border-top: 1px dashed #666;
+  border-top: 1px dashed var(--rule-color);
   margin-top: 2em;
   .flex-col {
     gap: 2em;
