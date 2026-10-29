@@ -3,7 +3,7 @@
   width: 100%;
   border-top: 1px solid #666;
   border-bottom: 1px solid #666;
-  tr:nth-child(even) { background: whitesmoke; }
+  tr:nth-child(even) { background: #f8f8f8; }
   td {
     vertical-align: baseline;
     & > p {
