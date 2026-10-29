@@ -133,6 +133,9 @@
       margin-left: calc(0px - var(--paper-margin-left));
       transform: none;
     }
+    .footnotes {
+      margin-top: 1.5em;
+    }
     .footnotes::before {
       content: "";
       display: block;
