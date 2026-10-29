@@ -335,17 +335,18 @@
       const n = nChild(head), rest = split(item, head, big ? 'block' : undefined);
       if (rest) { partial = nChild(head) > n; el.prepend(rest); break; }
     }
+    blank(el) && fitLastPiece(head, el, prev);  // (may push children to el)
     blank(el) || moveTrailingHeadings(head, el, prev);
     prev && !partial && moveShortHead(head, el);
-    blank(el) && fitLastPiece(head, el, prev);
     el.tagName === 'OL' && nChild(head) && !blank(el) && fixOlStart(head, el);
     return [head, blank(el) ? null : el];
   }
 
-  // a heading should not be the last child of a piece that is continued, so move it
-  // (and the headings before it) to the rest (el)
+  // a heading (or a legend, which is too tall for moveShortHead() when it's in a
+  // framed block) should not be the last child of a piece that is continued, so
+  // move it (and those before it) to the rest (el)
   function moveTrailingHeadings(head, el, prev) {
-    for (let h; (h = head.lastElementChild)?.matches('h1,h2,h3,h4,h5,h6') && (nChild(head) > 1 || prev);)
+    for (let h; (h = head.lastElementChild)?.matches('h1,h2,h3,h4,h5,h6,legend') && (nChild(head) > 1 || prev);)
       el.prepend(h);
   }
   // if only about one line (e.g., a legend or the first list item) is left on the
