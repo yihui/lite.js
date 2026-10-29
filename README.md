@@ -136,6 +136,13 @@ of backticks in Markdown (which will be rendered to `<code>` in HTML), and this
 script will remove the `<code>` tag, so that MathJax can recognize the math
 expressions (by default, MathJax ignores math in `<code>`).
 
+## nav-highlight.js
+
+Highlight the links in `<nav>` that point to the current page by setting
+`aria-current="page"` on them (style them via `nav a[aria-current]`). The
+`.html` extension, `index.html`, trailing slashes, query strings, and hashes are
+ignored when comparing URLs, so `foo.html` matches `foo`.
+
 ## no-highlight.js
 
 Add the `nohighlight` class to `<code>` in `<pre>` when it does not have a
