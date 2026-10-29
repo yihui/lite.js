@@ -151,7 +151,7 @@
 
   // --- Putting elements on pages -------------------------------------
 
-  function* fill(el) {
+  function* fill(el, more = true) {
     // if the element is already a page, just use it as the box
     if (el.classList.contains('pagesjs-page')) {
       nextPage(el, () => nChild(el) > 3 && (
@@ -163,57 +163,40 @@
     } else {
       // in a book, a chapter (a container of <h1>) starts on a new page
       if (book && box.innerText !== '' && $('h1', el)) nextPage();
-      if (el.innerText.trim() && H - box.scrollHeight < H_min) breakPage();
-      yield* place(el);
+      if (el.innerText.trim() && H - box.scrollHeight < H_min) nextPage();
+      yield* place(el, more);
     }
   }
 
   // append el to the page, and if it overflows, put as much of it as possible on
   // the page and the rest on the next page(s)
-  function* place(el) {
+  function* place(el, more) {
     for (;;) {
       const c = ctx();
       endFrag(el);
       if (isBigBlock(el)) {
         // don't attach a big element to the page, since it takes time to style
         // and lay out all its content just to find out that it does not fit
-        el = split(el, c, 'block');
+        el = split(el, c, 'block', more);
       } else {
         c.append(el);
         if (!overflows()) return;
-        el = split(el, c);
+        el = split(el, c, undefined, more);
       }
       if (!el) return;
-      breakPage(el);
+      nextPage();
       yield;  // (a chance to paint the progress)
       // TODO: remove possibly duplicated citations: .citation + div > [id^="ref-"]
     }
   }
 
-  // Start a new page, but don't leave a heading alone at the bottom of the page.
-  // The heading may be the last child of a piece of a broken element (e.g., a
-  // chapter), in which case it goes back to the rest of the element (if provided).
-  function breakPage(rest) {
-    let parent = ctx(), h = parent.lastElementChild, depth = 0;
-    const isHeading = e => e?.matches('h1,h2,h3,h4,h5,h6');
-    while (rest && h && !isHeading(h) && h.classList.contains(fr_cls)) {
-      parent = h; h = h.lastElementChild; depth++;
-    }
-    const keep = isHeading(h) && hasPrev(h) && h;
-    keep && keep.remove();
-    nextPage();
-    if (!keep) return;
-    let target = rest;  // the rest of the container of the heading
-    for (let i = 1; i < depth && target; i++) target = target.firstElementChild;
-    target?.tagName === parent.tagName && depth ? target.prepend(keep) : ctx().append(keep);
-  }
   // Put as much of el (which has just overflowed the page in container) as
   // possible into container, and return the rest (detached) if any. Unless el is
   // the first thing on the page, it will be left out entirely if it can't be broken.
-  function split(el, container, kind) {
+  function split(el, container, kind, more) {
     // (for a block, prev is determined after it is cut, to avoid laying it out)
     const k = kind || kindOf(el), prev = k === 'block' ? undefined : hasPrev(el),
-      first = !el.classList.contains(fr_cls), r = k && splitters[k](el, container, prev, first);
+      first = !el.classList.contains(fr_cls), r = k && splitters[k](el, container, prev, first, more);
     if (!r) return prev && (el.remove(), el);
     const [head, rest] = r;
     if (blank(head)) return head.remove(), rest;  // nothing fits
@@ -319,7 +302,7 @@
 
   // move children to a clone of el one by one until the page is full, and split
   // the child that overflows recursively, so elements can be broken at any depth
-  function splitBlock(el, container, prev, first) {
+  function splitBlock(el, container, prev, first, more) {
     wrapRuns(el);
     const head = cut(el, container, first);
     prev = hasPrev(head);
@@ -332,7 +315,7 @@
         head.append(item);
         if (!overflows()) continue;
       }
-      const n = nChild(head), rest = split(item, head, big ? 'block' : undefined);
+      const n = nChild(head), rest = split(item, head, big ? 'block' : undefined, more || !!el.firstElementChild);
       if (rest) { partial = nChild(head) > n; el.prepend(rest); break; }
     }
     blank(el) && fitLastPiece(head, el, prev);  // (may push children to el)
@@ -342,11 +325,11 @@
     return [head, blank(el) ? null : el];
   }
 
-  // a heading (or a legend, which is too tall for moveShortHead() when it's in a
-  // framed block) should not be the last child of a piece that is continued, so
-  // move it (and those before it) to the rest (el)
+  // a legend (which is too tall for moveShortHead() when it's in a framed block)
+  // should not be the last child of a piece that is continued, so move it (and
+  // those before it) to the rest (el)
   function moveTrailingHeadings(head, el, prev) {
-    for (let h; (h = head.lastElementChild)?.matches('h1,h2,h3,h4,h5,h6,legend') && (nChild(head) > 1 || prev);)
+    for (let h; (h = head.lastElementChild)?.matches('legend') && (nChild(head) > 1 || prev);)
       el.prepend(h);
   }
   // if only about one line (e.g., a legend or the first list item) is left on the
@@ -369,7 +352,7 @@
     el.start += nChild(head) - (el.firstElementChild.classList.contains(fr_cls) ? 1 : 0);
   }
   // split <p> by testing if a range fits the current box
-  function splitInline(el, container, prev, first) {
+  function splitInline(el, container, prev, first, more) {
     const ends = lineStarts(el);
     if (ends.length < 2) return;  // single-line paragraph
     const r = d.createRange(), rest = el.cloneNode(), n = ends.length;
@@ -389,10 +372,9 @@
       cutLine();
       if (k > 0 && !overflows()) break;
     }
-    // avoid a widow (single last line on the next page) and an orphan (single
-    // first line at the bottom of the page)
-    if (k > 1 && n - k === 1) cutLine();
-    if (k === 1 && prev && n < 5) cutLine();  // (not for a long paragraph, to avoid moving too much)
+    // avoid a widow only when it is the very last line of the content, i.e.,
+    // alone on a page (an orphan, or a widow followed by more content, is fine)
+    if (k > 1 && n - k === 1 && !more) cutLine();
     return [el, rest];
   }
 
@@ -587,7 +569,7 @@
       let ft;  // first footnote on page
       // move all footnotes after the page body
       $$('.footnotes', box).forEach((el, i) => {
-        i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.remove());
+i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.remove());
       });
     });
   }
@@ -670,7 +652,7 @@
     for (const [i, el] of roots.entries()) {
       wrap = ancestors(el); box_ctx = null;
       book && (box.innerText === '' ? newPage(box) : nextPage());
-      for (const child of els[i]) yield* fill(child);
+      for (const [j, child] of els[i].entries()) yield* fill(child, i < roots.length - 1 || j < els[i].length - 1);
       // clean up container and self if empty
       removeBlank(el.parentNode); removeBlank(el);
     }
