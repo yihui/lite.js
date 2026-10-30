@@ -52,7 +52,7 @@ async function firstPages(page, name, block, free, head = '') {
   await paginate(page, fixture(name + '-probe', `<main><p>x</p>${block}</main>`, '', head));
   const [B, h] = await page.evaluate(() => [
     document.querySelector('.pagesjs-body').getBoundingClientRect().height,
-    document.querySelector('.pagesjs-body > * > :nth-child(2)').offsetHeight
+    document.querySelector('.pagesjs-body > * > :nth-child(2)')?.offsetHeight
   ]);
   const out = [];
   for (const f of free(h)) {
@@ -79,6 +79,15 @@ test('table caption is not left alone at the bottom of a page', async ({page}) =
 <table><thead><tr><th>A</th><th>B</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   const pages = await firstPages(page, 'fill-caption', block, () => range(40, 200, 6));
   pages.forEach(p => expect(!p.text.includes('CAPTION') || p.text.includes('a0b0')).toBe(true));
+});
+
+test('native table caption stays with the first rows', async ({page}) => {
+  const rows = Array.from({length: 12}, (_, i) => `<tr><td>a${i}</td><td>b${i}</td></tr>`).join('');
+  const block = `<table><caption>CAPTION ${'long caption text '.repeat(25)}</caption>
+<thead><tr><th>A</th><th>B</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const pages = await firstPages(page, 'fill-native-caption', block, () => range(40, 260, 6));
+  // the caption and the first row are on the same page, and the caption is never alone
+  pages.forEach(p => expect(p.text.includes('CAPTION'), p.text.slice(0, 60)).toBe(p.text.includes('a0b0')));
 });
 
 test('list item of a few lines is not pushed to the next page', async ({page}) => {

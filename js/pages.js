@@ -461,6 +461,10 @@
   function splitTable(el, container, prev, first) {
     const head = cut(el, container, first), tb = el.tBodies[0], tb2 = tb.cloneNode(),
       rows = [...tb.rows], n = rows.length, min = prev ? 0 : 1;
+    // the caption (which is not broken) goes with the first rows, unless it is below the table
+    const cap = el.caption && getComputedStyle(el.caption).captionSide !== 'bottom' ? el.caption : null;
+    function clear() { cap && el.prepend(cap); head.innerHTML = ''; }
+    cap && head.append(cap);
     // copy table header and footer (the header goes first, as in the original)
     [el.tHead, tb2, el.tFoot].forEach(t => t && head.append(t === tb2 ? t : t.cloneNode(true)));
     // Put all rows in the page and lay them out once. The rows whose bottoms are
@@ -479,12 +483,12 @@
       while (k > min && pageHeight() > H + .5) tb.prepend(rows[--k]);  // make sure they fit
     }
     // clear the clone if current page can't fit even one row
-    tb2.rows.length || (head.innerHTML = '');
+    tb2.rows.length || clear();
     // avoid a single row on either page
     const m = tb2.rows.length;
     if (tb.rows.length === 1 && m > 1 || m === 1 && prev && tb.rows.length) {
       tb.prepend(tb2.rows[m - 1]);
-      if (m === 1) head.innerHTML = '';
+      if (m === 1) clear();
     }
     return [head, tb.rows.length ? el : null];
   }
