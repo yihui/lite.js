@@ -1,5 +1,5 @@
 // look for overflowed <pre> and <table>, and assign .fullwidth class to them
-document.querySelectorAll('pre,table,#TableOfContents').forEach(node => {
+document.querySelectorAll('pre,table,#TOC,#TableOfContents').forEach(node => {
   function fullwidth(el) {
     el.classList.add('fullwidth');
     el.dataset.autoFullwidth = '';  // so sidenotes.js only undoes what we added
@@ -16,7 +16,7 @@ document.querySelectorAll('pre,table,#TableOfContents').forEach(node => {
       p && p.offsetWidth < node.offsetWidth && fullwidth(node);
       break;
     default:
-      // assume it's #TableOfContents for now
+      // assume it's the TOC for now
       node.querySelectorAll('a').forEach(a => {
         // if a TOC line is wrapped, make TOC full-width
         !node.classList.contains('fullwidth') && a.getClientRects().length > 1 && fullwidth(node);
