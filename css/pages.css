@@ -195,7 +195,7 @@
   margin-top: var(--page-footer-top);
   align-items: start;
   &::before {
-    content: " ";
+    content: attr(data-page-url);
   }
   &::after {
     content: attr(data-page-number);

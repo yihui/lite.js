@@ -615,6 +615,8 @@
   // add page number, title, etc. to data-* attributes of page elements
   function numberPages() {
     let page_title, i = 0;
+    const u = new URL(location.href);  // page URL without ?paged=1, shown on the last page
+    u.searchParams.delete('paged');
     boxes.forEach(box => {
       if (book) {
         if ($('.pagesjs-front', box)) return;  // skip book frontmatter page
@@ -625,7 +627,8 @@
       i += N;
       addCls(box, `page-${i % 2 === 0 ? 'even' : 'odd'}`);
       const info = {
-        'pageNumber': i, 'mainTitle': main_title, 'pageTitle': page_title
+        'pageNumber': i, 'mainTitle': main_title, 'pageTitle': page_title,
+        'pageUrl': box === boxes.at(-1) && u.href
       };
       [box.children[0], lastEl(box)].forEach(el => {
         for (const key in info) info[key] && (el.dataset[key] = info[key]);

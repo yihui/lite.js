@@ -163,3 +163,17 @@ test('page-multiple only for content that really overflows', async ({page}) => {
   expect(await multi(5)).toBe(0);  // hangs over the body into the space above the footer
   expect(await multi(80)).toBe(1);  // runs into the footer
 });
+
+test('only the last page has data-page-url, without ?paged=1', async ({page}) => {
+  const body = '<main>' + '<p style="height: 600px">x</p>'.repeat(4) + '</main>';
+  await paginate(page, fixture('page-url', body));
+  const r = await page.evaluate(() => ({
+    n: document.querySelectorAll('.pagesjs-page').length,
+    urls: [...document.querySelectorAll('[data-page-url]')].map(e => e.dataset.pageUrl),
+    last: [...document.querySelectorAll('.pagesjs-page')].at(-1).querySelectorAll('[data-page-url]').length
+  }));
+  expect(r.n).toBeGreaterThan(1);
+  expect(r.last).toBe(r.urls.length);
+  expect(r.urls.length).toBeGreaterThan(0);
+  expect(r.urls.every(u => u.endsWith('page-url.html'))).toBe(true);
+});
