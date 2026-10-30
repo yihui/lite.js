@@ -429,9 +429,8 @@
   function splitTable(el, container, prev, first) {
     const head = cut(el, container, first), tb = el.tBodies[0], tb2 = tb.cloneNode(),
       rows = [...tb.rows], n = rows.length, min = prev ? 0 : 1;
-    head.append(tb2);
-    // copy table header and footer
-    [el.tHead, el.tFoot].forEach(t => t && head.append(t.cloneNode(true)));
+    // copy table header and footer (the header goes first, as in the original)
+    [el.tHead, tb2, el.tFoot].forEach(t => t && head.append(t === tb2 ? t : t.cloneNode(true)));
     // Put all rows in the page and lay them out once. The rows whose bottoms are
     // below (the bottom of the last row - the overflow) do not fit; put them back.
     tb2.append(...rows);
@@ -586,6 +585,10 @@ i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.
 
   // --- Pagination ----------------------------------------------------
 
+  function ownText(el) {
+    return [...el.childNodes].some(n => n.nodeType === 3 && n.nodeValue.trim());
+  }
+  function canBeRoot(el) { return !['PRE', 'TABLE'].includes(el.tagName) && !ownText(el); }
   // The content root is specified via <body data-pages-root="selector">, or is
   // <main> (or an element with role="main"), or the top-level <article> elements,
   // or <body>. If <main> only has a child (e.g., <article>), the child is the root
@@ -595,7 +598,9 @@ i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.
     if (x.length) return x;
     let main = $('main, [role="main"]');
     // if it only contains a wrapper (e.g., an <article>), use the wrapper instead
-    while (main?.childElementCount === 1) main = main.firstElementChild;
+    // (but not an element that is broken by its own, or has text, which would be lost)
+    while (main?.childElementCount === 1 && !ownText(main) && canBeRoot(main.firstElementChild))
+      main = main.firstElementChild;
     if (main) return [main];
     const articles = [...$$('article')].filter(el => !el.parentNode.closest('article'));
     return articles.length ? articles : [d.body];

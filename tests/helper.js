@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // text of the text nodes under the selector without whitespace, ignoring
-// <style>/<script> and <thead> (which is repeated on pages); robust against
+// <style>/<script> and <thead> (which is repeated on each page of a table); robust against
 // where pages break lines
 const text = (el) => {
   let out = '';

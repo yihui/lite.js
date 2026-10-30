@@ -9,12 +9,13 @@ const table = (n) => '<table><thead><tr><th>A</th><th>B</th></tr></thead><tbody>
   Array.from({length: n}, (_, i) => `<tr><td>a${i}</td><td>b${i}</td></tr>`).join('') + '</tbody></table>';
 const code = (n) => '<pre><code>' + Array.from({length: n}, (_, i) => `line_${i} <span>x</span>`).join('\n') + '</code></pre>';
 
-// (<main> with a single child would make the child the content root, so every case has an intro)
 const cases = {
   paragraphs: {body: `<main><h1>Title</h1><h2>S1</h2>${para(40)}<h2>S2</h2>${para(20)}</main>`},
-  'nested lists': {body: `<main><p>Intro</p>${list(15, 2)}</main>`},
-  table: {body: `<main><p>Intro</p>${table(200)}</main>`},
-  code: {body: `<main><p>Intro</p>${code(300)}</main>`},
+  'nested lists': {body: `<main>${list(15, 2)}</main>`},
+  table: {body: `<main>${table(200)}</main>`},
+  // the only child of <main> is not the content root if it has text or is a table/pre
+  'single paragraph': {body: `<main>${para(1).replace('</p>', ' <em>x</em></p>')}</main>`},
+  code: {body: `<main>${code(300)}</main>`},
   // regression: a big block of hidden panes was wrapped in nested runs endlessly
   'big hidden tabset': {
     head: '<style>.tab-pane:not(.active) {display: none}</style>',
