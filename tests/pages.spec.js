@@ -177,3 +177,16 @@ test('only the last page has data-page-url, without ?paged=1', async ({page}) =>
   expect(r.urls.length).toBeGreaterThan(0);
   expect(r.urls.every(u => u.endsWith('page-url.html'))).toBe(true);
 });
+
+test('TOC links get the page numbers of their targets', async ({page}) => {
+  const ids = [0, 1, 2, 3];
+  const body = `<main><nav id="TOC"><ul>${ids.map(i => `<li><a href="#s${i}">S${i}</a></li>`).join('')}</ul></nav>` +
+    ids.map(i => `<h2 id="s${i}">S${i}</h2>${para(12)}`).join('') + '</main>';
+  await paginate(page, fixture('toc-numbers', body));
+  const r = await page.evaluate(() => [...document.querySelectorAll('#TOC a')].map(a => [
+    a.dataset.pageNumber, document.getElementById(a.hash.slice(1)).closest('.pagesjs-page').children[0].dataset.pageNumber
+  ]));
+  expect(r.length).toBe(ids.length);
+  r.forEach(([got, want]) => expect(got).toBe(want));
+  expect(new Set(r.map(x => x[0])).size).toBeGreaterThan(1);
+});

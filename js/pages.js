@@ -641,9 +641,8 @@
   // add page numbers to TOC with data-* attributes
   function numberToc() {
     $$('#TOC a[href^="#"]').forEach(a => {
-      const id = CSS.escape(a.getAttribute('href').replace(/^#/, '')),
-        p = $(`.pagesjs-page:has(#${id}) .pagesjs-header`);
-      a.dataset.pageNumber = p ? p.dataset.pageNumber : '';
+      const p = d.getElementById(a.getAttribute('href').slice(1))?.closest('.pagesjs-page');
+      a.dataset.pageNumber = p?.children[0].dataset.pageNumber ?? '';
     });
   }
 
