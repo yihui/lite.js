@@ -124,3 +124,16 @@ test('notes are measured at the bottom of the page', async ({page}) => {
     r.slice(0, -1).forEach((p, i) => expect(p.free, `free ${f}, page ${i + 1}`).toBeLessThan(65));
   }
 });
+
+// A page that is a few pixels too tall in fill mode is fine if the extra space is only white
+// space in the end (nothing reaches the footer); otherwise the page needs more physical pages.
+test('page-multiple only for content that really overflows', async ({page}) => {
+  await paginate(page, fixture('multi-probe', '<main><p>x</p></main>'));
+  const B = await page.evaluate(() => document.querySelector('.pagesjs-body').getBoundingClientRect().height);
+  const multi = async (over) => {
+    await paginate(page, fixture('multi', `<main><div style="height: ${B + over}px"></div><p>x</p></main>`));
+    return page.evaluate(() => document.querySelectorAll(".page-multiple").length);
+  };
+  expect(await multi(5)).toBe(0);  // hangs over the body into the space above the footer
+  expect(await multi(80)).toBe(1);  // runs into the footer
+});

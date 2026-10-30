@@ -43,6 +43,7 @@
     tpl = d.createElement('div'),
     boxes = [],  // all pages
     wrapped = new WeakSet(),  // elements whose runs of inline nodes have been wrapped
+    guessed = new WeakSet(),  // pages whose number of physical pages is an estimate (see calcPages())
     notes = new Map(),  // the items of each note (footnote or citation), by its marker (see detachNotes())
     hold = d.createElement('div');  // a hidden container for elements that need styles
   tpl.className = 'pagesjs-page';
@@ -86,7 +87,7 @@
     return m;
   }
   // the height of the page without the margin at the end of its content
-  function pageHeight(b = box) { syncNotes(b); return b.getBoundingClientRect().height - trailingMargin(b.children[1]); }
+  function pageHeight() { syncNotes(); return box.getBoundingClientRect().height - trailingMargin(); }
   // does the page overflow?
   function overflows() { syncNotes(); return box.scrollHeight - trailingMargin() > H; }
   // The notes are not measured inline (where they are floats next to their references),
@@ -107,14 +108,28 @@
   // compute page numbers and temporarily remove the box
   function finish(box) {
     syncNotes(box);
+    const h = box.scrollHeight;
     // tolerate a few pixels (and the margin of the last element) hanging over the page bottom
-    // (as in the splitters: sizes are fractional, and scrollHeight is rounded)
-    if (pageHeight(box) > H + .5 && !box.dataset.pagesOffset) {
-      const n = calcPages(box, box.scrollHeight);
-      if (n > 1) box.dataset.pagesOffset = n;
+    if (h - trailingMargin(box.children[1]) > H && !box.dataset.pagesOffset) {
+      const n = calcPages(box, h);
+      if (n > 1) box.dataset.pagesOffset = n, guessed.add(box);
     }
     box.remove();
     progress && (progress.textContent = `Paginating: ${++n_done} pages done`);
+  }
+  // The height of a page in fill mode is its natural height, which includes spaces that
+  // are not needed in the end (e.g., the margins of the last element), so a page that is a
+  // few pixels too tall may be fine with its fixed height. Check the pages in the end:
+  // if the content doesn't reach the notes/footer after the body and nothing hangs over
+  // the paper, the estimated number of pages is wrong.
+  function checkOffsets() {
+    boxes.forEach(box => {
+      if (!guessed.has(box)) return;
+      const body = box.children[1], r = d.createRange();
+      r.selectNodeContents(body);
+      if (r.getBoundingClientRect().bottom <= body.nextElementSibling.getBoundingClientRect().top &&
+        box.scrollHeight <= box.clientHeight + 1) delete box.dataset.pagesOffset;
+    });
   }
   // calculate how many new pages we need for overflowed content (this is just
   // an estimate; if not accurate, use <div class="pagesjs-page" data-pages-offset="N">
@@ -482,15 +497,13 @@
     const head = cut(el, container, first), code2 = code.cloneNode();
     head.append(code2, ...kids.filter(c => c !== code && !tail.includes(c)));
     let i = fitLines(code2, lines, prev);
-    // the last piece has bottom margin/padding/border, which may not fit
-    if (i === lines.length) head.classList.add(fr_2), i = fitLines(code2, lines, prev);
     // avoid a single line on either page
     if (i > 1 && lines.length - i === 1) i--;
     if (i === 1 && prev) i = 0;
     // i == 0 means not enough space to split code on current page
     if (i) code2.innerHTML = lines.slice(0, i).join('\n'); else head.innerHTML = '';
     code.innerHTML = lines.slice(i).join('\n');
-    if (code.innerHTML.trim()) return head.classList.remove(fr_2), [head, el];
+    if (code.innerHTML.trim()) return [head, el];
     i && head.append(...tail);
     return [head, null];
   }
@@ -734,8 +747,9 @@
     function* run() {
       yield* fillPages(roots, els);
       cls.remove('pagesjs-filling');
-      numberPages();
       d.body.prepend(...boxes);  // unhide all pages
+      checkOffsets();
+      numberPages();
       numberToc();
       hold.remove(); progress?.remove();
       finished = true;
