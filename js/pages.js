@@ -230,8 +230,10 @@
     if (blank(head)) return head.remove(), rest;  // nothing fits
     if (rest) {
       rest.classList.add(fr_cls); rest.classList.remove(fr_1, fr_2);
+    } else if (head.classList.contains(fr_1)) {
+      head.classList.remove(fr_cls, fr_1, fr_2);  // it's not really split
     } else {
-      head.classList.add(fr_2);  // the last piece (also the first if it's not really split)
+      head.classList.add(fr_2);  // the last piece
     }
     return rest;
   }
@@ -364,8 +366,20 @@
   // if only about one line (e.g., a legend or the first list item) is left on the
   // page, and no child was split, move it to the next page with the rest (el)
   function moveShortHead(head, el) {
-    if (!blank(el) && head.getBoundingClientRect().height < 1.5 * H_line)
+    if (!blank(el) && head.getBoundingClientRect().height < 1.5 * H_line) {
+      rejoin(head.lastElementChild, el.firstElementChild);
       el.prepend(...head.childNodes);
+    }
+  }
+  // put back the piece a (at the end of the head) into its rest b (at the start of el),
+  // so they are one element again
+  function rejoin(a, b) {
+    if (!a?.classList.contains(fr_cls) || !b?.classList.contains(fr_cls) || a.tagName !== b.tagName) return;
+    rejoin(a.lastElementChild, b.firstElementChild);
+    b.prepend(...a.childNodes);
+    // (b is not marked as the last piece yet; if a was the first piece, they are the original element)
+    b.classList.remove(...a.classList.contains(fr_1) ? [fr_cls, fr_1, fr_2] : [fr_1]);
+    a.remove();
   }
   // If all children fit, head is the last piece, which has bottom margin/padding/
   // border that were hidden when it was measured as a non-last piece; if it is too

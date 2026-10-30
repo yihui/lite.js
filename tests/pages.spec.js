@@ -38,6 +38,8 @@ for (const [name, {body, attrs, head}] of Object.entries(cases)) {
     r.pages.forEach((p, i) => expect(p.overflow, `page ${i + 1} overflows`).toBeLessThanOrEqual(5));
     // no blank pages
     r.pages.forEach((p, i) => expect(p.text, `page ${i + 1} is blank`).not.toBe(''));
+    // the pieces of broken elements are consistent
+    expect(r.bad).toEqual([]);
     // nothing lost, duplicated, or reordered
     expect(r.pages.map(p => p.text).join('')).toBe(r.before);
   });
@@ -57,6 +59,7 @@ async function firstPages(page, name, block, free, head = '') {
   const out = [];
   for (const f of free(h)) {
     const r = await paginate(page, fixture(name, `<main><div style="height: ${B - f}px"></div>${block}</main>`, '', head));
+    expect(r.bad, `free ${f}`).toEqual([]);
     out.push(r.pages[0]);
   }
   return out;
@@ -88,6 +91,12 @@ test('native table caption stays with the first rows', async ({page}) => {
   const pages = await firstPages(page, 'fill-native-caption', block, () => range(40, 260, 6));
   // the caption and the first row are on the same page, and the caption is never alone
   pages.forEach(p => expect(p.text.includes('CAPTION'), p.text.slice(0, 60)).toBe(p.text.includes('a0b0')));
+});
+
+test('a broken paragraph that is put back is one element again', async ({page}) => {
+  // two lines are split between the pages, but the one line left on the page is moved back
+  const pages = await firstPages(page, 'fill-rejoin', '<ul><li><p>line one<br>line two</p></li><li><p>next item</p></li></ul>', () => range(20, 140, 2));
+  expect(pages.length).toBeGreaterThan(0);
 });
 
 test('list item of a few lines is not pushed to the next page', async ({page}) => {

@@ -44,5 +44,14 @@ export async function paginate(page, url, sel = 'body') {
   const pages = await page.evaluate(`((text) => [...document.querySelectorAll('.pagesjs-page')].map(p => ({
     text: text(p.querySelector('.pagesjs-body')), overflow: p.scrollHeight - p.clientHeight
   })))(${text})`);
-  return {pages, before};
+  // Pieces of a broken element (classes pagesjs-fragmented, fragment-first/last): a piece that
+  // is not the last one is the last thing in its parent on the page, a piece that is not the
+  // first one is the first thing, and nothing is both (that is a whole element).
+  const bad = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-body .pagesjs-fragmented')].flatMap(e => {
+    const c = e.classList, first = c.contains('fragment-first'), last = c.contains('fragment-last');
+    const vis = n => n && n.getBoundingClientRect().height > 0;
+    return [first && last && 'both', !last && vis(e.nextElementSibling) && 'followed', !first && vis(e.previousElementSibling) && 'preceded']
+      .filter(Boolean).map(w => `${w}: ${e.tagName}.${e.className}`);
+  }));
+  return {pages, before, bad};
 }
