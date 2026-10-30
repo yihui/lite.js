@@ -55,7 +55,7 @@
     box_ctx,  // where the content goes in the body (see ctx())
     wrap = [],  // the ancestors of the content root (outermost first)
     H, B,  // the height of a page and of its body
-    H_min,  // the height of a single-line paragraph
+    H_min, H_line,  // the height of a single-line paragraph (with margins) and of a line
     main_title,  // the title of the document
     probed,  // the content that is on the probe page (see probe())
     pending,  // the rest of the pagination, which is waiting for the probe
@@ -336,16 +336,20 @@
   // if only about one line (e.g., a legend or the first list item) is left on the
   // page, and no child was split, move it to the next page with the rest (el)
   function moveShortHead(head, el) {
-    if (!blank(el) && head.getBoundingClientRect().height < 1.5 * H_min)
+    if (!blank(el) && head.getBoundingClientRect().height < 1.5 * H_line)
       el.prepend(...head.childNodes);
   }
   // If all children fit, head is the last piece, which has bottom margin/padding/
-  // border that were hidden when it was measured as a non-last piece; push the
-  // last children out (into el) if it is too big now.
+  // border that were hidden when it was measured as a non-last piece; if it is too
+  // big now, break the last child (or push it out entirely if it can't be broken).
   function fitLastPiece(head, el, prev) {
     head.classList.add(fr_2);
-    while (overflows() && head.lastElementChild && (nChild(head) > 1 || prev))
-      el.prepend(head.lastElementChild);
+    while (overflows() && head.lastElementChild && (nChild(head) > 1 || prev)) {
+      const last = head.lastElementChild, rest = split(last, head, undefined, true);
+      if (!rest) break;
+      el.prepend(rest);
+      if (rest !== last) break;  // (a piece of the child is still on the page)
+    }
     blank(el) || head.classList.remove(fr_2);
   }
   // update the start number of the rest of <ol> (an item split in half counts once)
@@ -622,7 +626,7 @@ i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.
   function measureMinHeight() {
     const p = d.createElement('p'), H0 = box.scrollHeight;
     p.innerText = 'A'; box_body.append(p);
-    H_min = box.scrollHeight - H0; p.remove();
+    H_min = box.scrollHeight - H0; H_line = p.getBoundingClientRect().height; p.remove();
   }
   // add dot leaders to TOC (page numbers will be added after the pages are ready)
   function addTocLeaders() {
