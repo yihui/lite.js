@@ -14,6 +14,7 @@ npx playwright test -g tabset          # tests whose name matches
 CHROMIUM_PATH=/usr/bin/chromium-browser npm test   # use an installed browser
 ```
 
+- `.npmrc` pins the public npm registry so `package-lock.json` never gets URLs of a machine-specific (e.g., internal) registry; check with `grep -c resolved package-lock.json` vs `grep -c registry.npmjs.org package-lock.json` after changing dependencies.
 - Fix a bug or add a feature => add a test that fails without the change.
 - Tests for a script go in `tests/<script>.spec.js`; write the fixture HTML inline and load the script from the repo by absolute `file://` URL (see `fixture()` in `tests/helper.js`).
 - Assert behavior and invariants, not pixels or exact layout. A hang shows up as a timeout.
