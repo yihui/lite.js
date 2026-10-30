@@ -2,20 +2,25 @@
 // each box holds as much content as possible without exceeding the page height.
 //
 // How it works:
-// 1. The content root (e.g., <main>) is emptied, and its children are put on
-//    pages one by one (fill() -> place()). Only the current page is in the DOM, so
-//    measuring it is cheap (box.scrollHeight > H means the page overflows).
-// 2. When an element makes the page overflow, split() puts as much of it as
+// 1. The content root (e.g., <main>) is emptied, and all its content is laid out
+//    once on a probe page (probe()), so that content that reacts to the page width
+//    settles and the positions of the blocks are known.
+// 2. The children are put on pages one by one (fill() -> place()). Only the current
+//    page is in the DOM, so measuring it is cheap (box.scrollHeight > H means the
+//    page overflows), but each measurement is a forced layout; so children that
+//    surely fit, according to their positions on the probe page, are put on a page
+//    together and measured once (fitting()).
+// 3. When an element makes the page overflow, split() puts as much of it as
 //    possible on the current page and returns the rest, which goes to the next
 //    page. An element can be broken in different ways (kindOf()): block elements
 //    (e.g., lists and quotes) are cloned and their children are moved into the
-//    clone one by one, with the child that overflows broken recursively; text,
+//    clone as in step 2, with the child that overflows broken recursively; text,
 //    table rows, and code lines are broken by lines/rows. Every piece of a broken
 //    element has the classes pagesjs-fragmented, fragment-first, fragment-last
 //    (the pieces can be styled differently in pages.css).
-// 3. Each page contains empty copies of the ancestors of the content root, so
+// 4. Each page contains empty copies of the ancestors of the content root, so
 //    CSS selectors that depend on them still work (see ctx()).
-// 4. In the end, page numbers and titles are added to the headers/footers.
+// 5. In the end, page numbers and titles are added to the headers/footers.
 (d => {
 
   // --- Utilities -----------------------------------------------------
@@ -62,6 +67,7 @@
     wrapped = new WeakSet(),  // elements whose runs of inline nodes have been wrapped
     guessed = new WeakSet(),  // pages whose number of physical pages is an estimate (see calcPages())
     notes = new Map(),  // the items of each note (footnote or citation), by its marker (see detachNotes())
+    probeY = new WeakMap(),  // the bottoms of the blocks on the probe page (see fitting())
     hold = make('div');  // a hidden container for elements that need styles
   tpl.innerHTML = `<div class="pagesjs-header"></div>
 <div class="pagesjs-body"></div>
@@ -74,6 +80,7 @@
     wrap = [],  // the ancestors of the content root (outermost first)
     H, B,  // the height of a page and of its body
     H_min, H_line,  // the height of a single-line paragraph (with margins) and of a line
+    used,  // the height of the content of the page when it was last measured (see overflows())
     main_title,  // the title of the document
     probed,  // the content that is on the probe page (see probe())
     pending,  // the rest of the pagination, which is waiting for the probe
@@ -105,7 +112,7 @@
   // the height of the page without the margin at the end of its content
   function pageHeight() { syncNotes(); return rect(box).height - trailingMargin(); }
   // does the page overflow?
-  function overflows() { syncNotes(); return box.scrollHeight - trailingMargin() > H; }
+  function overflows() { syncNotes(); return (used = box.scrollHeight - trailingMargin()) > H; }
   // The notes are not measured inline (where they are floats next to their references),
   // but in a block after the page body, as in the end: put the notes of the references
   // that are on the page there (and take the others off).
@@ -347,6 +354,29 @@
 
   // --- Breaking elements ---------------------------------------------
 
+  // Measuring the page after each child is slow (a forced layout), so put several children
+  // on it at once when they surely fit: the nodes (in order) that end a line above the page
+  // bottom, going by their distances on the probe page from the last child on the page. If
+  // they turn out not to fit, they are taken back, so the estimate affects the speed but not
+  // the result. The children of the content root need the room that fill() asks for (H_min,
+  // and as much again for the margin after the previous child).
+  function fitting(head, nodes, root) {
+    const prev = lastEl(head), y0 = prev && !has(prev, fr_cls) ? probeY.get(prev) : undefined, run = [];
+    if (y0 === undefined || !used) return run;
+    let y = y0, n = 0;
+    for (const c of nodes) {
+      if (c.nodeType === 1) {
+        const y1 = probeY.get(c);
+        if (!(y1 >= y) || c.matches(`.${fr_cls}, .pagesjs-page`) || isBigBlock(c) || $('.pagesjs-note', c) ||
+          used + y1 - y0 + H_line > H || root && (used + y - y0 + 2 * H_min > H || book && $('h1', c))) break;
+        y = y1;
+      }
+      run.push(c);
+      c.nodeType === 1 && (n = run.length);
+    }
+    return run.slice(0, n);
+  }
+  function* siblings(n) { for (; n; n = n.nextSibling) yield n; }
   // move children to a clone of el one by one until the page is full, and split
   // the child that overflows recursively, so elements can be broken at any depth
   function splitBlock(el, container, prev, first, more) {
@@ -359,10 +389,15 @@
       endFrag(item);
       const big = isBigBlock(item);
       if (!big) {
-        head.append(item);
+        const run = fitting(head, siblings(item));
+        run.length || run.push(item);
+        head.append(...run);
         if (!overflows()) continue;
+        // (the estimate was too optimistic) take back all but the first
+        if (run.length > 1 && (el.prepend(...run.slice(1)), !overflows())) continue;
       }
       const n = nChild(head), rest = split(item, head, big ? 'block' : undefined, more || !!firstEl(el));
+      used = null;  // (the page has changed)
       if (rest) { partial = nChild(head) > n; el.prepend(rest); break; }
     }
     blank(el) && fitLastPiece(head, el, prev);  // (may push children to el)
@@ -597,8 +632,14 @@
       })();
     });
   }
+  // record the bottoms of the blocks that may be children of a broken element
+  function markY(el) {
+    probeY.set(el, rect(el).bottom);
+    el.matches(`p, pre, table, ${atomic}`) || kids(el).forEach(markY);
+  }
   function unprobe() {
     if (!probed) return;
+    probed.forEach(ch => ch.forEach(markY));  // (before removing anything, to lay out only once)
     probed.forEach(ch => ch.forEach(el => el.remove()));
     box_body.innerHTML = ''; box_ctx = null; wrap = [];
     rmCls(box, 'pagesjs-settle');
@@ -732,7 +773,13 @@
     for (const [i, el] of roots.entries()) {
       wrap = ancestors(el); box_ctx = null;
       book && (box.innerText === '' ? newPage(box) : nextPage());
-      for (const [j, child] of els[i].entries()) yield* fill(child, i < roots.length - 1 || j < els[i].length - 1);
+      const list = els[i];
+      for (let j = 0; j < list.length; j++) {
+        yield* fill(list[j], i < roots.length - 1 || j < list.length - 1);
+        // put the next children on the page at once if they surely fit
+        const run = fitting(ctx(), list.slice(j + 1), true);
+        run.length && (ctx().append(...run), overflows() ? run.forEach(e => e.remove()) : j += run.length);
+      }
       // clean up container and self if empty
       removeBlank(el.parentNode); removeBlank(el);
     }

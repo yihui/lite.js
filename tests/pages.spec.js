@@ -24,6 +24,15 @@ const cases = {
         `<div class="tab-pane${i ? '' : ' active'}">${list(200)}</div>`).join('')
     }</div></main>`
   },
+  // the estimate of what fits is too optimistic: blocks are shorter on the probe page than on the pages
+  'blocks taller than on the probe page': {
+    head: '<style>.pagesjs-settle p {max-height: 6px; overflow: hidden}</style>',
+    body: `<main><section>${para(40)}</section><p>end</p></main>`
+  },
+  'root children taller than on the probe page': {
+    head: '<style>.pagesjs-settle p {max-height: 6px; overflow: hidden}</style>',
+    body: `<main>${para(40)}</main>`
+  },
   'root and front by selector': {
     attrs: 'data-pages-root="div.main" data-pages-front="div.meta"',
     body: `<div class="meta"><h1 class="title">Doc</h1></div><div class="main"><nav id="TOC"><ul><li><a href="#a">A</a></li></ul></nav>${para(30).replace('<p>', '<h2 id="a">A</h2><p>')}</div>`
@@ -189,4 +198,23 @@ test('TOC links get the page numbers of their targets', async ({page}) => {
   expect(r.length).toBe(ids.length);
   r.forEach(([got, want]) => expect(got).toBe(want));
   expect(new Set(r.map(x => x[0])).size).toBeGreaterThan(1);
+});
+
+// Blocks that surely fit the page (going by their positions on the probe page) are put there
+// together, instead of being measured (via scrollHeight) one by one.
+test('short blocks are not measured one by one', async ({page}) => {
+  await page.addInitScript(() => {
+    const get = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight').get;
+    window.reads = 0;
+    Object.defineProperty(Element.prototype, 'scrollHeight', {get() { window.reads++; return get.call(this); }});
+  });
+  const blocks = Array.from({length: 300}, (_, i) => `<p>Short ${i}.</p>`).join('');
+  const bodies = {flat: `<main>${blocks}</main>`, nested: `<main><section>${blocks}</section><p>end</p></main>`};
+  for (const [name, body] of Object.entries(bodies)) {
+    const r = await paginate(page, fixture('short-' + name, body));
+    expect(r.pages.length).toBeGreaterThan(1);
+    expect(r.pages.map(p => p.text).join(''), name).toBe(r.before);
+    const n = await page.evaluate(() => window.reads);
+    expect(n, `${name}: scrollHeight reads`).toBeLessThan(120);
+  }
 });
