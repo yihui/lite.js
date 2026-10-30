@@ -29,7 +29,7 @@
   const
     book = $$('h1').length > 1,  // a document with multiple <h1> is a book (chapters)
     // elements that are never broken across pages (CSS break-inside: avoid also works)
-    atomic = 'h1,h2,h3,h4,h5,h6,hr,img,svg,video,canvas,iframe,object,embed,math,mjx-container,figure,.figure,details',
+    atomic = 'h1,h2,h3,h4,h5,h6,hr,img,svg,video,canvas,iframe,object,embed,math,mjx-container,figure,.figure,.caption,details',
     // classes of the pieces of a broken element
     fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
     // pixels that the content may hang over the bottom of a page (the page has a
@@ -354,11 +354,11 @@
     return [head, blank(el) ? null : el];
   }
 
-  // a legend (which is too tall for moveShortHead() when it's in a framed block)
-  // should not be the last child of a piece that is continued, so move it (and
-  // those before it) to the rest (el)
+  // a legend or a caption (which is too tall for moveShortHead() when it's in a framed
+  // block or above a table) should not be the last child of a piece that is continued,
+  // so move it (and those before it) to the rest (el)
   function moveTrailingHeadings(head, el, prev) {
-    for (let h; (h = head.lastElementChild)?.matches('legend') && (nChild(head) > 1 || prev);)
+    for (let h; (h = head.lastElementChild)?.matches('legend, .caption') && (nChild(head) > 1 || prev);)
       el.prepend(h);
   }
   // if only about one line (e.g., a legend or the first list item) is left on the

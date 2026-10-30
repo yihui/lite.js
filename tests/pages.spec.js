@@ -73,6 +73,14 @@ test('callout is broken to fill the page', async ({page}) => {
   pages.forEach(p => expect(p.text).toContain('Tip'));
 });
 
+test('table caption is not left alone at the bottom of a page', async ({page}) => {
+  const rows = Array.from({length: 6}, (_, i) => `<tr><td>a${i}</td><td>b${i}</td></tr>`).join('');
+  const block = `<div class="table"><div class="caption"><p>CAPTION ${'long caption text '.repeat(25)}</p></div>
+<table><thead><tr><th>A</th><th>B</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const pages = await firstPages(page, 'fill-caption', block, () => range(40, 200, 6));
+  pages.forEach(p => expect(!p.text.includes('CAPTION') || p.text.includes('a0b0')).toBe(true));
+});
+
 test('list item of a few lines is not pushed to the next page', async ({page}) => {
   // there is room for the first item (3 lines) but not for the list
   const items = Array.from({length: 4}, (_, i) => `<li>item${i}<br>line<br>line</li>`).join('');
