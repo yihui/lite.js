@@ -3,7 +3,7 @@
   "version": "1.14.135",
   "description": "Miscellaneous tools and utilities to manipulate HTML pages",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "playwright test"
   },
   "repository": {
     "type": "git",
@@ -23,5 +23,9 @@
   "bugs": {
     "url": "https://github.com/yihui/lite.js/issues"
   },
-  "homepage": "https://github.com/yihui/lite.js#readme"
+  "homepage": "https://github.com/yihui/lite.js#readme",
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
 }

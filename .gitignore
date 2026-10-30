@@ -4,3 +4,5 @@
 .Ruserdata
 *.Rproj
 .positai
+node_modules
+test-results
