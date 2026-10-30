@@ -223,13 +223,6 @@
     .pagesjs-page {
       opacity: 0;  /* don't show the page that is being filled (only the progress) */
       height: auto;
-      .pagesjs-body:has(.footnotes) {
-        margin-bottom: 1em;
-        .footnotes {
-          float: left;
-          width: 100%;
-        }
-      }
     }
   }
 }

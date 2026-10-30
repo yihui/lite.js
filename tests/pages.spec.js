@@ -89,3 +89,38 @@ test('code that fits only without the bottom border and margin is broken', async
     expect(await page.evaluate(() => document.querySelectorAll('.page-multiple').length), `free ${free}`).toBe(0);
   }
 });
+
+// Notes (footnotes and citations put after their references by sidenotes.js) are measured
+// in a block after the page body, as in the end: the content must not run into the notes,
+// and must fill the page up to them.
+test('notes are measured at the bottom of the page', async ({page}) => {
+  const para = (i) => `<p>Text ${i}<sup class="note-ref" data-note="${i}">${i}</sup> ${words}</p>`;
+  // (a <div> in a <p> is possible only in the DOM)
+  const body = `<main><div style="height: BFILLpx"></div>${para(1)}${para(2)}${para(3)}</main>
+<script>document.querySelectorAll('sup').forEach(a => {
+  const n = document.createElement('div');
+  n.className = 'footnotes'; n.innerHTML = '<p>note ' + a.dataset.note + ' ${words.slice(0, 60)}</p>'; a.after(n);
+})</script>`;
+  const head = '<style>p {margin: 0 0 10px; line-height: 20px; font-size: 14px}</style>';
+  await paginate(page, fixture('notes-probe', '<main><p>x</p></main>', '', head));
+  const B = await page.evaluate(() => document.querySelector('.pagesjs-body').getBoundingClientRect().height);
+  for (const f of range(150, 400, 10)) {
+    await paginate(page, fixture('notes', body.replace('BFILL', B - f), '', head));
+    const r = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-page')].map(pg => {
+      const body = pg.querySelector('.pagesjs-body'), br = body.getBoundingClientRect();
+      let bottom = br.top;
+      for (let e = body; e.lastElementChild;) { e = e.lastElementChild; bottom = Math.max(bottom, e.getBoundingClientRect().bottom); }
+      const fn = pg.querySelector('.footnotes');  // (the last margin of the content may reach into the space above the notes)
+      return {
+        free: br.bottom - bottom, gap: (fn ? fn.getBoundingClientRect().top : br.bottom) - bottom,
+        notes: pg.querySelectorAll('.footnotes > p').length, refs: pg.querySelectorAll('sup').length
+      };
+    }));
+    r.forEach((p, i) => {
+      expect(p.notes, `free ${f}, page ${i + 1}: every reference has its note`).toBe(p.refs);
+      expect(p.gap, `free ${f}, page ${i + 1} runs into the notes`).toBeGreaterThanOrEqual(0);
+    });
+    // a paragraph is broken to fill the page (less than a widow and an orphan are left)
+    r.slice(0, -1).forEach((p, i) => expect(p.free, `free ${f}, page ${i + 1}`).toBeLessThan(65));
+  }
+});

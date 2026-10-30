@@ -43,6 +43,7 @@
     tpl = d.createElement('div'),
     boxes = [],  // all pages
     wrapped = new WeakSet(),  // elements whose runs of inline nodes have been wrapped
+    notes = new Map(),  // the items of each note (footnote or citation), by its marker (see detachNotes())
     hold = d.createElement('div');  // a hidden container for elements that need styles
   tpl.className = 'pagesjs-page';
   tpl.innerHTML = `<div class="pagesjs-header"></div>
@@ -85,15 +86,27 @@
     return m;
   }
   // the height of the page without the margin at the end of its content
-  function pageHeight(b = box) { return b.getBoundingClientRect().height - trailingMargin(b.children[1]); }
+  function pageHeight(b = box) { syncNotes(b); return b.getBoundingClientRect().height - trailingMargin(b.children[1]); }
   // does the page overflow?
-  function overflows() { return box.scrollHeight - trailingMargin() > H; }
+  function overflows() { syncNotes(); return box.scrollHeight - trailingMargin() > H; }
+  // The notes are not measured inline (where they are floats next to their references),
+  // but in a block after the page body, as in the end: put the notes of the references
+  // that are on the page there (and take the others off).
+  function syncNotes(b = box) {
+    const body = b.children[1], ms = [...$$('.pagesjs-note', body)], items = ms.flatMap(m => notes.get(m));
+    let c = $(':scope > .footnotes', b);
+    if (!items.length) return c?.remove();
+    c || body.after(c = d.createElement('div'));
+    c.className = 'footnotes';
+    if (items.some((e, i) => c.children[i] !== e) || c.childElementCount !== items.length) c.replaceChildren(...items);
+  }
   // start the next page and finish current page
   function nextPage(el, callback) {
     const cur = box; cur.after(newPage(el)); callback && callback(); finish(cur);
   }
   // compute page numbers and temporarily remove the box
   function finish(box) {
+    syncNotes(box);
     // tolerate a few pixels (and the margin of the last element) hanging over the page bottom
     // (as in the splitters: sizes are fractional, and scrollHeight is rounded)
     if (pageHeight(box) > H + .5 && !box.dataset.pagesOffset) {
@@ -163,7 +176,7 @@
     } else {
       // in a book, a chapter (a container of <h1>) starts on a new page
       if (book && box.innerText !== '' && $('h1', el)) nextPage();
-      if (el.innerText.trim() && H - box.scrollHeight < H_min) nextPage();
+      if (el.innerText.trim() && (syncNotes(), H - box.scrollHeight < H_min)) nextPage();
       yield* place(el, more);
     }
   }
@@ -567,16 +580,11 @@
       const info = {
         'pageNumber': i, 'mainTitle': main_title, 'pageTitle': page_title
       };
-      [box.children[0], box.children[2]].forEach(el => {
+      [box.children[0], box.lastElementChild].forEach(el => {
         for (const key in info) info[key] && (el.dataset[key] = info[key]);
       });
       // find page title for next page
       page_title = shortTitle([...$$(ps, box)].pop()) || page_title;
-      let ft;  // first footnote on page
-      // move all footnotes after the page body
-      $$('.footnotes', box).forEach((el, i) => {
-i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.remove());
-      });
     });
   }
 
@@ -622,6 +630,16 @@ i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.
   function removeSideClasses() {
     $$(':is(#TOC, .footnotes, .chapter-before, .chapter-after):is(.side-left, .side-right).side').forEach(el => {
       el.classList.remove('side', 'side-left', 'side-right');
+    });
+  }
+  // Replace the notes (footnotes and citations that sidenotes.js has put after their
+  // references) with markers, which go with the references when the text is broken.
+  function detachNotes() {
+    $$('.footnotes').forEach(el => {
+      if (!el.previousElementSibling?.classList.contains('note-ref')) return;
+      const m = d.createElement('span');
+      m.className = 'pagesjs-note'; m.hidden = true;
+      notes.set(m, [...el.children]); el.replaceWith(m);
     });
   }
   // test how much space a single-line paragraph needs
@@ -711,6 +729,7 @@ i === 0 ? (ft = el, box.children[1].after(el)) : (ft.append(...el.children), el.
     measureMinHeight();
     addTocLeaders();
 
+    detachNotes();
     const roots = findRoots(), els = detachContent(roots);
     function* run() {
       yield* fillPages(roots, els);
