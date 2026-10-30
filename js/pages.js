@@ -18,6 +18,9 @@
 //    table rows, and code lines are broken by lines/rows. Every piece of a broken
 //    element has the classes pagesjs-fragmented, fragment-first, fragment-last
 //    (the pieces can be styled differently in pages.css).
+//    A float (see isFloat()) that does not fit is not broken: it waits for the next
+//    page (class pagesjs-float), and the content after it fills the space. A float
+//    that is very tall takes a whole page (nothing else fits on it), centered.
 // 4. Each page contains empty copies of the ancestors of the content root, so
 //    CSS selectors that depend on them still work (see ctx()).
 // 5. In the end, page numbers and titles are added to the headers/footers.
@@ -51,12 +54,16 @@
   const
     book = $$('h1').length > 1,  // a document with multiple <h1> is a book (chapters)
     // elements that are never broken across pages (CSS break-inside: avoid also works)
-    atomic = 'h1,h2,h3,h4,h5,h6,hr,img,svg,video,canvas,iframe,object,embed,math,mjx-container,figure,.figure,.caption,details',
+    atomic = 'h1,h2,h3,h4,h5,h6,hr,img,svg,video,canvas,iframe,object,embed,math,mjx-container,figure,.figure,.float,.caption,details',
     // classes of the pieces of a broken element
     fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
     // pixels that the content may hang over the bottom of a page (the page has a
     // much larger padding there), since sizes are rounded and the browsers differ
     tol = 3,
+    // floats taller than this percentage of the page body take a whole page (see stays());
+    // set via <body data-pages-float-page="...">, e.g., 100 for never (in LaTeX, a float
+    // taller than 70% of the page, \topfraction, can't share a page with text at its top)
+    floatPage = parseFloat(d.body.dataset.pagesFloatPage) || 70,
     // top/bottom page margin
     tb = ['top', 'bottom'].map(i =>
       num(style(d.documentElement).getPropertyValue(`--paper-margin-${i}`))
@@ -66,6 +73,7 @@
     boxes = [],  // all pages
     wrapped = new WeakSet(),  // elements whose runs of inline nodes have been wrapped
     guessed = new WeakSet(),  // pages whose number of physical pages is an estimate (see calcPages())
+    floats = [],  // the floats that wait for a page (see putFloats())
     notes = new Map(),  // the items of each note (footnote or citation), by its marker (see detachNotes())
     probeY = new WeakMap(),  // the bottoms of the blocks on the probe page (see fitting())
     hold = make('div');  // a hidden container for elements that need styles
@@ -81,6 +89,7 @@
     H, B,  // the height of a page and of its body
     H_min, H_line,  // the height of a single-line paragraph (with margins) and of a line
     used,  // the height of the content of the page when it was last measured (see overflows())
+    whole,  // the float that takes the page that is being filled (see takePage())
     main_title,  // the title of the document
     probed,  // the content that is on the probe page (see probe())
     pending,  // the rest of the pagination, which is waiting for the probe
@@ -110,9 +119,13 @@
     return m;
   }
   // the height of the page without the margin at the end of its content
-  function pageHeight() { syncNotes(); return rect(box).height - trailingMargin(); }
+  function pageHeight() { syncNotes(); return crowded() ? Infinity : rect(box).height - trailingMargin(); }
   // does the page overflow?
-  function overflows() { syncNotes(); return (used = box.scrollHeight - trailingMargin()) > H; }
+  function overflows() { syncNotes(); return (used = box.scrollHeight - trailingMargin()) > H || crowded(); }
+  // Nothing fits on the page of a float that takes it: is the page taken, and is there
+  // anything after the float?
+  function taken() { return !!whole && box_body.contains(whole); }
+  function crowded() { return taken() && hasAround(whole, 'next'); }
   // The notes are not measured inline (where they are floats next to their references),
   // but in a block after the page body, as in the end: put the notes of the references
   // that are on the page there (and take the others off).
@@ -126,7 +139,7 @@
   }
   // start the next page and finish current page
   function nextPage(el, callback) {
-    const cur = box; cur.after(newPage(el)); callback && callback(); finish(cur);
+    const cur = box; cur.after(newPage(el)); callback && callback(); putFloats(); finish(cur);
   }
   // compute page numbers and temporarily remove the box
   function finish(box) {
@@ -182,13 +195,15 @@
   // The container for the content on the current page. It is a chain of empty
   // clones of the content root and its ancestors (i.e., the original context), so
   // CSS selectors that depend on them (e.g., `main h2`) still apply on pages.
+  // an empty clone of el that keeps its context for CSS selectors but not its box
+  function wrapper(el) {
+    const c = el.cloneNode(); addCls(c, 'pagesjs-wrap'); rmCls(c, fr_cls, fr_1, fr_2);
+    return c;
+  }
   function ctx() {
     if (!wrap.length) return box_body;
     if (!box_ctx || !box_body.contains(box_ctx)) {
-      box_ctx = wrap.reduce((p, el) => {
-        const c = el.cloneNode(); addCls(c, 'pagesjs-wrap');
-        return p.appendChild(c);
-      }, box_body);
+      box_ctx = wrap.reduce((p, el) => p.appendChild(wrapper(el)), box_body);
     }
     return box_ctx;
   }
@@ -213,8 +228,8 @@
       ));
     } else {
       // in a book, a chapter (a container of <h1>) starts on a new page
-      if (book && box.innerText !== '' && $('h1', el)) nextPage();
-      if (el.innerText.trim() && (syncNotes(), H - box.scrollHeight < H_min)) nextPage();
+      if (book && box.innerText !== '' && $('h1', el)) flush(), nextPage();
+      if (el.innerText.trim() && (taken() || (syncNotes(), H - box.scrollHeight < H_min))) nextPage();
       yield* place(el, more);
     }
   }
@@ -231,6 +246,7 @@
         el = split(el, c, 'block', more);
       } else {
         c.append(el);
+        if (isFloat(el) && !stays(el, c)) return;
         if (!overflows()) return;
         el = split(el, c, undefined, more);
       }
@@ -248,7 +264,7 @@
     // (for a block, prev is determined after it is cut, to avoid laying it out)
     const k = kind || kindOf(el), prev = k === 'block' ? undefined : hasPrev(el),
       first = !has(el, fr_cls), r = k && splitters[k](el, container, prev, first, more);
-    if (!r) return prev && (el.remove(), el);
+    if (!r) return prev && (el.remove(), isFloat(el) ? defer(el, container) : el);
     const [head, rest] = r;
     if (blank(head)) return head.remove(), rest;  // nothing fits
     if (rest) {
@@ -261,18 +277,70 @@
     return rest;
   }
 
+  // Floats are captioned figures and elements with the class "float". They are never
+  // broken: one that does not fit where it is waits for the next page, and the content
+  // after it fills the page, as in LaTeX. They keep their order (a float waits if an
+  // earlier one does), and wait at most until the end of the chapter (book) or the root.
+  function isFloat(el) {
+    return el.matches('.float') || el.matches('figure, .figure') && !!$('figcaption, .caption', el);
+  }
+  // does a float take a whole page?
+  function isTall(f) { return rect(f).height > B * floatPage / 100; }
+  // let a float take the page: overflows() keeps everything else off the page, and
+  // the class makes the body center the float vertically (see pages.css)
+  function takePage(f) { whole = f; addCls(box, 'page-float'); }
+  // Does a float (attached to container) stay where it is? Not if floats wait before it,
+  // or if it takes a whole page and there is content before it: it goes to a page of its own.
+  function stays(f, container) {
+    const tall = isTall(f);
+    if (floats.length || tall && hasPrev(f)) return defer(f, container, tall), false;
+    tall && takePage(f);
+    return true;
+  }
+  // does the next page belong to a float that takes a page? (then the rest of what is
+  // broken on this page is not on the next page, and should not be a lone line)
+  function tallWaiting() { return floats[0]?.[2]; }
+  // (a float keeps the wrappers of the pieces of the elements that it was in, e.g., a
+  // chapter, so the CSS selectors that depend on them still work on the next page)
+  function defer(el, container, tall) {
+    const chain = [];
+    for (let p = container, top = ctx(); p && p !== top; p = p.parentNode) chain.unshift(wrapper(p));
+    el.remove(); floats.push([el, chain, tall]);
+  }
+  // put the waiting floats at the top of the new page, in order, as many as fit (the
+  // first one stays even if it is too big, since it can't wait any longer)
+  function putFloats() {
+    while (floats.length) {
+      const [f, chain] = floats[0], out = chain[0] || f;
+      chain.reduce((p, c) => p.appendChild(c), ctx()).append(f);
+      // the first float on the page stays (centered if it takes the page); the others
+      // only if they are short and fit
+      if (hasPrev(out)) {
+        if (isTall(f) || overflows()) return out.remove();
+      } else isTall(f) && takePage(f);
+      floats.shift(); addCls(f, 'pagesjs-float');
+    }
+  }
+  function flush() {
+    putFloats();
+    while (floats.length) nextPage();
+  }
+
   // is an element a block that is too big to be put on a page as a whole?
   function isBigBlock(el) {
-    return !['TABLE', 'PRE'].includes(el.tagName) && el.getElementsByTagName('*').length > 300;
+    return !isFloat(el) && !['TABLE', 'PRE'].includes(el.tagName) && el.getElementsByTagName('*').length > 300;
   }
   function blank(el) { return !firstEl(el) && !el.textContent.trim(); }
-  // is there anything above el on the page (which means el may go to the next page)?
-  function hasPrev(el) {
+  // is there anything before ('previous') or after ('next') el on the page (if there is
+  // something before it, el may go to the next page)?
+  function hasAround(el, side) {
+    const k = side + 'ElementSibling';
     for (; el && el !== box_body; el = el.parentNode)
-      for (let p = el.previousElementSibling; p; p = p.previousElementSibling)
+      for (let p = el[k]; p; p = p[k])
         if (rect(p).height) return true;
     return false;
   }
+  function hasPrev(el) { return hasAround(el, 'previous'); }
   function inFlow(cs) {
     return cs.float === 'none' && !['absolute', 'fixed'].includes(cs.position);
   }
@@ -367,7 +435,7 @@
     for (const c of nodes) {
       if (c.nodeType === 1) {
         const y1 = probeY.get(c);
-        if (!(y1 >= y) || c.matches(`.${fr_cls}, .pagesjs-page`) || isBigBlock(c) || $('.pagesjs-note', c) ||
+        if (!(y1 >= y) || c.matches(`.${fr_cls}, .pagesjs-page`) || isFloat(c) || isBigBlock(c) || $('.pagesjs-note', c) ||
           used + y1 - y0 + H_line > H || root && (used + y - y0 + 2 * H_min > H || book && $('h1', c))) break;
         y = y1;
       }
@@ -392,6 +460,7 @@
         const run = fitting(head, siblings(item));
         run.length || run.push(item);
         head.append(...run);
+        if (isFloat(item) && !stays(item, head)) continue;
         if (!overflows()) continue;
         // (the estimate was too optimistic) take back all but the first
         if (run.length > 1 && (el.prepend(...run.slice(1)), !overflows())) continue;
@@ -471,8 +540,9 @@
       if (k > 0 && !overflows()) break;
     }
     // avoid a widow only when it is the very last line of the content, i.e.,
-    // alone on a page (an orphan, or a widow followed by more content, is fine)
-    if (k > 1 && n - k === 1 && !more) cutLine();
+    // alone on a page (an orphan, or a widow followed by more content, is fine); or when
+    // it would come after a page of a float (the paragraph moves entirely if it has 2 lines)
+    if (n - k === 1 && (k > 1 && !more || (k > 1 || prev) && tallWaiting())) cutLine();
     return [el, rest];
   }
 
@@ -782,6 +852,7 @@
         const run = fitting(ctx(), list.slice(j + 1), true);
         run.length && (ctx().append(...run), overflows() ? run.forEach(e => e.remove()) : j += run.length);
       }
+      flush();
       // clean up container and self if empty
       removeBlank(el.parentNode); removeBlank(el);
     }

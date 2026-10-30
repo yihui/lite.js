@@ -233,3 +233,124 @@ test('the first page is marked if it has the frontmatter', async ({page}) => {
   expect(await page.evaluate(() => document.querySelectorAll('.page-front').length)).toBe(0);
   expect(await header(0)).not.toBe('none');
 });
+
+// A float (captioned figure, or an element with the class "float") that does not fit waits
+// for the next page, where it comes first, and the text after it fills the page.
+test('floats wait for the next page and the text fills the gap', async ({page}) => {
+  const fig = (id, h, cls = 'figure') => `<div class="${cls}" id="${id}"><div style="height: ${h}px">FIG${id}</div><div class="caption">cap ${id}</div></div>`;
+  const run = async (blocks) => {
+    await paginate(page, fixture('float-probe', '<main><p>x</p></main>'));
+    const B = await page.evaluate(() => document.querySelector('.pagesjs-body').getBoundingClientRect().height);
+    const url = fixture('float', `<main><div style="height: ${B - 200}px"></div>${blocks}${para(6)}</main>`);
+    const r = await paginate(page, url);
+    expect(r.bad).toEqual([]);
+    // nothing lost or duplicated (the order changes: floats move)
+    expect([...r.pages.map(p => p.text).join('')].sort().join('')).toBe([...r.before].sort().join(''));
+    const tops = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-body')].map(b =>
+      [...b.querySelectorAll('.pagesjs-float')].map(e => e.id)));
+    return {r, tops};
+  };
+  for (const cls of ['figure', 'float']) {
+    const {r, tops} = await run(fig('a', 300, cls));
+    expect(r.pages[0].text, `${cls}: the text fills page 1`).toContain('Paragraph0');
+    expect(r.pages[0].text).not.toContain('FIGa');
+    expect(tops[1]).toEqual(['a']);
+  }
+  // order: the small figure waits for the big one
+  const {tops} = await run(fig('a', 300) + fig('b', 20));
+  expect(tops[1]).toEqual(['a', 'b']);
+  // not floats: figures without a caption, and a figure that fits stays in place
+  const plain = await run('<div class="figure"><div style="height: 300px">FIGc</div></div>');
+  expect(plain.r.pages[0].text).not.toContain('Paragraph0');
+  const fits = await run(fig('d', 100));
+  expect(fits.r.pages[0].text).toContain('FIGd');
+});
+
+// A float that waits for the next page keeps the wrappers of the elements that it was in
+// (e.g., a chapter), so CSS selectors that depend on them still apply, and the wrappers
+// take no space.
+test('floats keep their wrappers', async ({page}) => {
+  await paginate(page, fixture('float-wrap-probe', '<main><p>x</p></main>'));
+  const B = await page.evaluate(() => document.querySelector('.pagesjs-body').getBoundingClientRect().height);
+  const head = '<style>.chapter {padding: 30px; border: 3px solid} .chapter .figure {color: rgb(1, 2, 3)}</style>';
+  const body = `<main><section class="chapter" id="ch"><div style="height: ${B - 250}px"></div>
+<div class="figure"><div style="height: 300px">FIG</div><div class="caption">cap</div></div>${para(6)}</section></main>`;
+  const r = await paginate(page, fixture('float-wrap', body, '', head));
+  expect(r.bad).toEqual([]);
+  const f = await page.evaluate(() => {
+    const e = document.querySelector('.pagesjs-float'), w = e.parentNode, cs = getComputedStyle(w);
+    return {
+      page: [...document.querySelectorAll('.pagesjs-page')].indexOf(e.closest('.pagesjs-page')),
+      tag: w.tagName, cls: w.className, color: getComputedStyle(e).color, pad: cs.paddingTop, border: cs.borderTopWidth
+    };
+  });
+  expect(f.page).toBe(1);
+  expect(f.tag + '.' + f.cls).toMatch(/^SECTION\..*pagesjs-wrap/);
+  expect(f.color).toBe('rgb(1, 2, 3)');
+  expect([f.pad, f.border]).toEqual(['0px', '0px']);
+});
+
+// A float taller than the threshold (70% of the page body by default, or
+// <body data-pages-float-page="N">) takes a whole page, vertically centered.
+test('a tall float takes a page of its own', async ({page}) => {
+  await paginate(page, fixture('float-page-probe', '<main><p>x</p></main>'));
+  const B = await page.evaluate(() => document.querySelector('.pagesjs-body').getBoundingClientRect().height);
+  const fig = `<div class="figure" id="f"><div style="height: ${Math.round(B * .75)}px">FIG</div><div class="caption">cap</div></div>`;
+  const run = async (body, attrs = '') => {
+    const r = await paginate(page, fixture('float-page', `<main>${body}</main>`, attrs));
+    expect(r.bad).toEqual([]);
+    const f = await page.evaluate(() => {
+      const e = document.getElementById('f'), pg = e.closest('.pagesjs-page'), b = pg.querySelector('.pagesjs-body').getBoundingClientRect();
+      const rc = e.getBoundingClientRect();
+      return {page: [...document.querySelectorAll('.pagesjs-page')].indexOf(pg), above: rc.top - b.top, below: b.bottom - rc.bottom,
+        others: [...pg.querySelectorAll('.pagesjs-body p, .pagesjs-body pre, .pagesjs-body table')].length};
+    });
+    return {r, f};
+  };
+  // after some text, the figure is alone on page 2 (the text after it fills page 1); at the
+  // start, it is alone on page 1
+  for (const [body, n] of [[`${para(1)}${fig}${para(4)}`, 1], [`${fig}${para(4)}`, 0],
+    [`<section>${fig}${para(4)}</section><section>${para(1)}</section>`, 0]]) {
+    const {r, f} = await run(body);
+    expect(f.others, 'nothing else on the page of the figure').toBe(0);
+    expect(Math.abs(f.above - f.below), 'centered').toBeLessThan(3);
+    expect(r.pages[f.page].text).not.toContain('Paragraph');
+    expect(f.page).toBe(n);
+    expect(r.pages.map(p => p.text.includes('Paragraph'))).toEqual(n ? [true, false] : [false, true]);
+  }
+  // code and tables (broken by the free space) of the element that the float was in come after its page
+  for (const block of [code(40), table(40)]) {
+    const {f} = await run(`<div style="height: ${Math.round(B - 200)}px"></div><section>${fig}${block}</section>`);
+    expect(f.others, 'nothing else on the page of the figure').toBe(0);
+  }
+  // with a higher threshold, it is just a float that fits where it is
+  const {r, f} = await run(`${para(1)}${fig}${para(4)}`, 'data-pages-float-page="90"');
+  expect(f.page).toBe(0);
+  expect(r.pages[0].text).toContain('Paragraph0');
+});
+
+// A float that takes a page comes between the pieces of a broken paragraph, so the piece after
+// it is not a lone line (a 2-line paragraph moves entirely).
+test('no lone line after a page of a float', async ({page}) => {
+  await paginate(page, fixture('float-widow-probe', '<main><p>x</p></main>'));
+  const B = await page.evaluate(() => document.querySelector('.pagesjs-body').getBoundingClientRect().height);
+  const fig = `<div class="figure" id="f"><div style="height: ${Math.round(B * .75)}px">FIG</div><div class="caption">cap</div></div>`;
+  const two = '<p>' + 'lorem ipsum dolor sit amet '.repeat(8) + '</p>';
+  const blocks = {paragraph: para(2), 'callout': `<fieldset class="callout"><legend>Tip</legend>${two}</fieldset>`,
+    'two lines': two + '<p>' + 'lorem ipsum dolor sit amet '.repeat(8) + '</p>'};
+  for (const [name, block] of Object.entries(blocks)) {
+    for (const free of range(30, 200, 7)) {
+      const r = await paginate(page, fixture('float-widow', `<main><div style="height: ${B - free}px"></div>${fig}${block}${para(3)}</main>`));
+      expect(r.bad, `${name}, free ${free}`).toEqual([]);
+      const lines = await page.evaluate(() => {
+        const pages = [...document.querySelectorAll('.pagesjs-page')], k = pages.findIndex(p => p.querySelector('#f'));
+        const e = pages[k + 1]?.querySelector('.pagesjs-body .pagesjs-fragmented.fragment-last');
+        const first = pages[k + 1]?.querySelector('.pagesjs-body p');
+        if (!e || e !== first) return null;
+        const r = document.createRange(); r.selectNodeContents(e);
+        return new Set([...r.getClientRects()].map(c => Math.round(c.top))).size;
+      });
+      lines === null || expect(lines, `${name}, free ${free}: lines of the piece after the float`).toBeGreaterThan(1);
+    }
+  }
+});

@@ -133,6 +133,12 @@
       margin-left: calc(0px - var(--paper-margin-left));
       transform: none;
     }
+    /* the page of a float that takes the whole page (the class is set by pages.js): center it */
+    &.page-float .pagesjs-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: safe center;  /* (a float taller than the page starts at the top) */
+    }
     .footnotes {
       margin-top: 1.5em;
     }

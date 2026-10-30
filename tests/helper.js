@@ -50,7 +50,7 @@ export async function paginate(page, url, sel = 'body') {
   const bad = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-body .pagesjs-fragmented')].flatMap(e => {
     const c = e.classList, first = c.contains('fragment-first'), last = c.contains('fragment-last');
     const vis = n => n && n.getBoundingClientRect().height > 0;
-    return [first && last && 'both', !last && vis(e.nextElementSibling) && 'followed', !first && vis(e.previousElementSibling) && 'preceded']
+    return [first && last && 'both', !last && vis(e.nextElementSibling) && 'followed', !first && vis(e.previousElementSibling) && !e.previousElementSibling.matches('.pagesjs-float') && 'preceded']
       .filter(Boolean).map(w => `${w}: ${e.tagName}.${e.className}`);
   }));
   return {pages, before, bad};
