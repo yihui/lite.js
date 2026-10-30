@@ -767,6 +767,8 @@
   // iteratively add elements to pages
   function* fillPages(roots, els) {
     for (const el of $$('.pagesjs-front, .abstract, #TOC:not(.chapter-toc)')) {
+      // mark the first page if it has the frontmatter (for styling; :has() would be re-checked on every change)
+      has(el, 'pagesjs-front') && box === boxes[0] && addCls(box, 'page-front');
       yield* fill(el);
       book && nextPage();
     }

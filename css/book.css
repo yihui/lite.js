@@ -49,7 +49,7 @@ h1 .section-number {
 article h2 { border-bottom-style: dashed; }
 /* TODO: style for h1.part and printing */
 
-.pagesjs .pagesjs-page:first-child:has(.pagesjs-front) {
+.pagesjs .pagesjs-page.page-front:first-child {
   padding: 0;
   .pagesjs-header, .pagesjs-footer {
     display: none;

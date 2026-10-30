@@ -218,3 +218,18 @@ test('short blocks are not measured one by one', async ({page}) => {
     expect(n, `${name}: scrollHeight reads`).toBeLessThan(120);
   }
 });
+
+// book.css styles the first page if it has the frontmatter via the class page-front (not :has(),
+// which is re-checked on every change in the page and makes pagination slower)
+test('the first page is marked if it has the frontmatter', async ({page}) => {
+  const book = `<link rel="stylesheet" href="${new URL('../css/book.css', import.meta.url).href}">`;
+  const header = async (n) => page.evaluate((n) => getComputedStyle(document.querySelectorAll('.pagesjs-page')[n].querySelector('.pagesjs-header')).display, n);
+  await paginate(page, fixture('front-page', `<header><h1 class="title">Doc</h1></header><main>${para(30)}</main>`, '', book));
+  expect(await page.evaluate(() => [...document.querySelectorAll('.pagesjs-page')].map(p => p.classList.contains('page-front')))
+    .then(a => a.indexOf(true) + ':' + a.filter(Boolean).length)).toBe('0:1');
+  expect(await header(0)).toBe('none');
+  expect(await header(1)).not.toBe('none');
+  await paginate(page, fixture('no-front-page', `<main>${para(30)}</main>`, '', book));
+  expect(await page.evaluate(() => document.querySelectorAll('.page-front').length)).toBe(0);
+  expect(await header(0)).not.toBe('none');
+});

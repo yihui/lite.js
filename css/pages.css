@@ -208,9 +208,7 @@
 }
 @media only screen {
   .pagesjs {
-    &:has(.pagesjs-page) {
-      background: #f7f7f7;
-    }
+    background: #f7f7f7;
     .pagesjs-page {
       background: white;
     }
