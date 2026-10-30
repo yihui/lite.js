@@ -79,3 +79,13 @@ test('list item of a few lines is not pushed to the next page', async ({page}) =
   const pages = await firstPages(page, 'fill-list', `<ul>${items}</ul>`, h => range(90, 110, 5));
   pages.forEach(p => expect(p.text).toContain('item0'));
 });
+
+test('code that fits only without the bottom border and margin is broken', async ({page}) => {
+  // a page that is too tall to fit gets a second (blank) page when printed (page-multiple)
+  const head = '<style>pre {padding: 10px; border: 3px solid; margin: 13px 0}</style>';
+  const block = `<pre><code>${Array.from({length: 12}, (_, i) => 'line ' + i).join('\n')}</code></pre>`;
+  for (const free of range(100, 300, 4)) {
+    await firstPages(page, 'fill-code', block, () => [free], head);
+    expect(await page.evaluate(() => document.querySelectorAll('.page-multiple').length), `free ${free}`).toBe(0);
+  }
+});
