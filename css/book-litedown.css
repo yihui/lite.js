@@ -94,7 +94,7 @@
   * {
     flex: 1 0 min-content;
   }
-  pre:has(code[data-file]) {
+  pre.file {
     border: groove mintcream;
     border-top: none;
     &::before {
@@ -119,7 +119,7 @@ code[data-file]::before {
   margin: -1em -1em 1em 1em;
 }
 
-pre:has(code[data-file]) {
+pre.file {
   &::before {
     content: "Output";
     text-transform: uppercase;
@@ -128,10 +128,10 @@ pre:has(code[data-file]) {
     padding: .5em 1em;
     border-bottom: none;
   }
-  &:has(code[data-file$=".Rmd"])::before {
+  &.example::before {
     content: "♧ Example";
   }
-  &:has(code[data-source])::before {
+  &.source::before {
     content: "♧ Source";
   }
   /* pieces of a code block split across pages: label only on the first piece,
