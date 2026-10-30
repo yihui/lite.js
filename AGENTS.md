@@ -26,6 +26,12 @@ CHROMIUM_PATH=/usr/bin/chromium-browser npm test   # use an installed browser
 - By design, not bugs: a 2-line paragraph is not split (orphan/widow), a heading may end a page, `.figure`/diagrams/flex containers are never broken (they overflow small pages), `moveShortHead()` compares with one line.
 - To compare a change: dump the `.pagesjs-page` HTML before and after (normalize file paths in link titles, random `md-<n>-<n>` ids and `data-page-number`), and check that the concatenated body text is identical.
 
+## Performance of `pages.js`
+
+- The time is the browser's style and layout, not the JS: every `scrollHeight`/`getBoundingClientRect()` read after a DOM change is a forced layout with a large fixed cost (0.3-0.6 ms). Count and batch the reads (see `fitting()`) instead of tuning the JS. `:has()` rules are re-evaluated on every DOM change in the page being filled, so don't use one that can match an ancestor of the content (e.g., `.pagesjs-page:has(.pagesjs-front)` cost 8% on the litedown book; `pages.js` adds the class `page-front` instead). Rules on content cost less (`pre:has(code[data-file])` was about 3% on the litedown book); a child combinator `:has(> ...)` does not make them cheaper, a class on the subject does (`pre.file`, which the book sets in a script).
+- Measure on the litedown book (and on a flat variant of it, without the chapter wrappers, since the children of the root take another path than those of a broken element). On a shared machine wall time is useless; compare the thread CPU time (CDP `Performance.getMetrics`, `ThreadTime`), the minimum of several runs, with the variants interleaved.
+- A speedup must not change the pages: compare the `.pagesjs-page` HTML before and after (see above) on those documents and on random ones (paragraphs, lists, tables, code, figures, big margins).
+
 ## Releases
 
 1. Commit the version bump in `package.json` as `Bump to X.Y.Z` (patch +1 unless told otherwise), after tests pass.
