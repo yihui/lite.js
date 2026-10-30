@@ -23,3 +23,11 @@ document.querySelectorAll('pre,table,#TOC,#TableOfContents').forEach(node => {
       });
   }
 });
+
+// pages.js doesn't use the auto fullwidth feature; undo what we added
+addEventListener('pagesjs:before', () => {
+  document.querySelectorAll('[data-auto-fullwidth]').forEach(el => {
+    el.classList.remove('fullwidth');
+    delete el.dataset.autoFullwidth;
+  });
+});
