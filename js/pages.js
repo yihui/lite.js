@@ -279,7 +279,8 @@
   // wrap each run of inline nodes in a block (like an anonymous block box in CSS)
   // so mixed content (e.g., <li>text<ul>...</ul></li>) can be broken as paragraphs
   function wrapRuns(el) {
-    if (wrapped.has(el)) return;
+    // (a run is made of inline nodes already; wrapping it again would nest runs endlessly)
+    if (wrapped.has(el) || el.classList.contains('pagesjs-run')) return;
     wrapped.add(el);
     // computed styles are available only in the DOM (but not necessarily on a page)
     el.isConnected || hold.append(el);
