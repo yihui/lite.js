@@ -757,6 +757,7 @@
     const cls = d.body.classList;
     if (cls.contains('pagesjs')) return;  // already paginated
     fire('pagesjs:before');
+    const t0 = performance.now();
 
     markFrontmatter();
     // (get the title while the document is visible, so innerText works)
@@ -787,6 +788,9 @@
       numberToc();
       hold.remove(); progress?.remove();
       finished = true;
+      const over = boxes.filter(b => b.classList.contains('page-multiple')).length;
+      console.info(`pages.js: ${boxes.length} pages in ${Math.round(performance.now() - t0)} ms` +
+        (over ? `; ${over} overflow their page` : ''));
       fire('pagesjs:after');
     }
     // Pagination is async unless it has to be sync (beforeprint). If printing
