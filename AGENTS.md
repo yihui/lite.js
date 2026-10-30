@@ -18,3 +18,9 @@ CHROMIUM_PATH=/usr/bin/chromium-browser npm test   # use an installed browser
 - Tests for a script go in `tests/<script>.spec.js`; write the fixture HTML inline and load the script from the repo by absolute `file://` URL (see `fixture()` in `tests/helper.js`).
 - Assert behavior and invariants, not pixels or exact layout. A hang shows up as a timeout.
 - `pages.js` tests (`tests/pages.spec.js`): `paginate()` paginates a fixture and returns the pages. Invariants: pagination finishes, pages fit, no blank page, no text lost/duplicated/reordered.
+
+## Releases
+
+1. Commit the version bump in `package.json` as `Bump to X.Y.Z` (patch +1 unless told otherwise), after tests pass.
+2. Tag that commit `vX.Y.Z` and push the commit and the tag. Pushing a `v*` tag triggers `.github/workflows/npm-publish.yml`, which builds the minified files, runs `npm publish`, and purges the CDN cache.
+3. Pushing and tagging are outward-facing: do them only when the user asks for a release.
