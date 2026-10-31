@@ -40,6 +40,9 @@ footer {
 article:not(.pagesjs *), .frontmatter {
   box-shadow: none;
   margin-top: auto;
+  @media (prefers-color-scheme: dark) {
+    box-shadow: 0 0 0 1px #bbb;
+  }
 }
 .frontmatter {
   background: linear-gradient(0, white, aliceblue);

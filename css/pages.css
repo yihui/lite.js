@@ -241,3 +241,8 @@
     }
   }
 }
+@media (prefers-color-scheme: dark) {
+  .pagesjs-page {
+    box-shadow: 0 0 0 1px #bbb;
+  }
+}
