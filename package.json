@@ -1,6 +1,6 @@
 {
   "name": "@xiee/utils",
-  "version": "1.14.138",
+  "version": "1.14.139",
   "description": "Miscellaneous tools and utilities to manipulate HTML pages",
   "scripts": {
     "test": "playwright test"
