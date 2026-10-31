@@ -37,13 +37,10 @@ footer {
 :is(.site-nav, footer) a {
   text-decoration: none;
 }
-:where(article, .appendix):not(article *, .pagesjs *), .frontmatter {
+article:not(.pagesjs *), .frontmatter {
   box-shadow: none;
   margin-top: auto;
 }
 .frontmatter {
   background: linear-gradient(0, white, aliceblue);
-}
-.appendix:not(article *) {
-  background: linear-gradient(0, whitesmoke, white);
 }

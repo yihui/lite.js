@@ -8,15 +8,14 @@ body {
   --side-margin: calc(0px - var(--side-width) - var(--side-gap));
 }
 body, blockquote, .side { background: #fafafa; }
-/* a card: an article (or appendix) that is not inside another article */
-:where(article, .appendix):not(article *, .pagesjs *), .frontmatter, .fullwidth, .embed-left, .embed-right {
+/* a card: an article, except in pages.js pages */
+article:not(.pagesjs *), .frontmatter, .fullwidth, .embed-left, .embed-right {
   margin-top: 2em;
   padding: 1em;
   box-shadow: 0 0 4px #ccc;
   background: var(--article-bg);
 }
 .side { font-size: .85em; }
-.appendix h2 { border-bottom: 1px dashed var(--rule-color); }
 #TOC { top: 0; }
 .bg-number {
   padding: 1px 5px;
@@ -153,7 +152,7 @@ div:has(> table) { overflow-x: auto; }
 @media (max-width: 50em) {
   body:not(.pagesjs) {
     padding: initial;
-    :where(article, .appendix):not(article *) { padding: 0 .5em; }
+    article { padding: 0 .5em; }
     :not(pre) > code { word-break: break-word; }
     .quote-left, .quote-right {
       width: inherit;
