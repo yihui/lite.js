@@ -31,7 +31,7 @@ body {
   margin-bottom: 2em;
 }
 .chapter {
-  &:not(.appendix) .main-number {
+  [id^="chp:"] > .main-number {
     &::before { content: "Chapter "; }
     &::after { content: none; }
   }
