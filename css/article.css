@@ -12,7 +12,7 @@ body, blockquote, .side { background: #fafafa; }
 :where(article, .appendix):not(article *, .pagesjs *), .frontmatter, .fullwidth, .embed-left, .embed-right {
   margin-top: 2em;
   padding: 1em;
-  box-shadow: 0 0 8px #ccc;
+  box-shadow: 0 0 4px #ccc;
   background: var(--article-bg);
 }
 .side { font-size: .85em; }
