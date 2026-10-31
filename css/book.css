@@ -4,19 +4,30 @@ body {
 .frontmatter, .chapter {
   min-height: calc(100vh - 1em);
 }
+/* the cover: a tint of the accent color fading to white, text centered */
 .frontmatter {
-  background-image: radial-gradient(#b6cee2 1px, #fff 1px);
-  background-size: 2em 2em;
-  background: #fff;
-  padding-bottom: 0;
-  & > div {
-    margin: 0 -1em;
-    background: #ebf6f9;
-    padding: 1em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2em 1.5em 12vh;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 14%, #fff), #fff 75%);
+  .title h1 {
+    font-size: clamp(2em, 7vw, 3em);
+    line-height: 1.2;
+    /* the same underline as in the chapter numbers */
+    &::after {
+      content: "";
+      display: block;
+      width: 3em;
+      margin: .6em auto 0;
+      border-bottom: 4px solid var(--accent);
+    }
   }
-  & .title {
-    padding: 20vh 1em 1em;
-    margin-top: -1em;
+  .author h2 {
+    letter-spacing: .08em;
+  }
+  .date h3 {
+    color: var(--rule-color);
   }
 }
 @media (min-width: 79.002em) {
@@ -58,11 +69,5 @@ article h2 { border-bottom-style: dashed; }
     margin: 0;
     padding: var(--paper-margin-top) var(--paper-margin-right) var(--paper-margin-bottom) var(--paper-margin-left);
     height: 100%;
-    .title {
-      margin-top: calc(0px - var(--paper-margin-top));
-    }
-    & > div {
-      margin: 0 calc(0px - var(--paper-margin-right)) 0 calc(0px - var(--paper-margin-left));
-    }
   }
 }
