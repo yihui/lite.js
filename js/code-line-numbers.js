@@ -11,6 +11,7 @@
       if (d > 0) n = '0'.repeat(d) + n;
       sp.dataset.lineNumber = n;
     });
+    el.style.setProperty('--ln-w', w);  // for the gutter width in CSS
   }
   addEventListener('load', e => document.querySelectorAll('pre > code.line-numbers:first-child').forEach(addNum));
 })();

@@ -1,7 +1,15 @@
+/* the gutter is the left padding of the code block, and each number is pulled
+   back into it by a negative margin, so wrapped lines start to the right of the
+   gutter (--ln-w is the number of digits, set in code-line-numbers.js) */
+code.line-numbers {
+  --ln-gutter: calc(var(--ln-w, 3) * 1ch + 1.5em + 1px);
+  display: block;
+  padding-left: var(--ln-gutter);
+}
 span[data-line-number]::before {
   content: attr(data-line-number);
   padding-right: .5em;
-  margin-right: 1em;
+  margin: 0 1em 0 calc(-1 * var(--ln-gutter));
   display: inline-block;
   border-right: solid 1px;
   color: #ccc;
