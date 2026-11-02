@@ -27,6 +27,9 @@
     }
   }
 }
+.comments {
+  margin-top: 2em;
+}
 footer {
   border-top: 1px dashed var(--rule-color);
   margin-top: 2em;
