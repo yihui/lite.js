@@ -32,6 +32,12 @@ h1, h2, h3 {
   /* package version next to the name: center it in the flex row */
   .version { align-self: center; margin-right: .5em; }
 }
+/* package logo (e.g., a hex sticker) on the home page of a package site */
+.logo {
+  float: right;
+  width: 120px;
+  margin: 0 0 1em 1em;
+}
 .comments {
   margin-top: 2em;
 }
