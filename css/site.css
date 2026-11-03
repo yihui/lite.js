@@ -26,6 +26,8 @@
       &:hover img { filter: invert(1); }
     }
   }
+  /* package version next to the name: center it in the flex row */
+  .version { align-self: center; margin-right: .5em; }
 }
 .comments {
   margin-top: 2em;

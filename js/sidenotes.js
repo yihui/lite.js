@@ -32,8 +32,9 @@
   d.querySelectorAll('.footnotes, #refs').forEach(el => {
     el.innerText.trim() || el.remove();
   });
-  // also add side classes to TOC
-  d.getElementById('TOC')?.classList.add('side', 'side-left');
+  // also add side classes to TOC, unless it has a `side` class already (e.g., from `toc: class`)
+  const toc = d.getElementById('TOC');
+  toc?.classList.contains('side') || toc?.classList.add('side', 'side-left');
   // if a sidenote collapses with an auto-added fullwidth element, remove its fullwidth class
   // (a user-specified .fullwidth is kept)
   const sides = d.querySelectorAll('.side.side-right, .side.side-left'), fulls = [];
