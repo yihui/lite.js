@@ -1,3 +1,6 @@
+h1, h2, h3 {
+  font-weight: 500;
+}
 .site-nav {
   & > p {
     display: flex;
