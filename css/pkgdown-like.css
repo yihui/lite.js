@@ -79,7 +79,9 @@ article:not(.pagesjs *), .frontmatter {
 }
 
 /* "On this page" */
-.side { background: none; }
+.side { background: var(--pk-bg); }
+
+#TOC { position: sticky; }
 #TOC.side {
   .active { color: var(--pk-primary); }
   &::before {
