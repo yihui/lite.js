@@ -81,7 +81,7 @@ article:not(.pagesjs *), .frontmatter {
 /* "On this page" */
 .side { background: var(--pk-bg); }
 
-#TOC { position: sticky; }
+#TOC { position: sticky; z-index: -1; }
 #TOC.side {
   .active { color: var(--pk-primary); }
   &::before {
