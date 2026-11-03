@@ -26,6 +26,7 @@
 
 body {
   max-width: 1140px;
+  padding-top: 0;
   background: var(--pk-bg);
   color: var(--pk-fg);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
