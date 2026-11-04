@@ -78,7 +78,7 @@ test('overlapping notes are stacked, in the order of their references', async ({
   expect(t[1].top).toBeGreaterThanOrEqual(t[0].bottom);
 });
 
-test('on narrow screens, notes follow their blocks and a repeated note is shown once', async ({page}) => {
+test('on narrow screens, notes follow their blocks', async ({page}) => {
   await article(page, `<p>A ${cite('a')}</p><p>B ${cite('b')}</p><p>C ${cite('a')}</p>${refs(['a', 'b'])}`);
   await page.setViewportSize({width: 600, height: 900});
   const r = await page.evaluate(() => {
@@ -119,4 +119,21 @@ test('the content can be <main> or .main instead of <article>', async ({page}) =
     expect(r.inside).toBe(0);
     expect(r.rights).toEqual([r.rights[0], r.rights[0]]);
   }
+});
+
+test('a repeated reference does not repeat the note in the margin, but shows it on hover', async ({page}) => {
+  await article(page, `<p>A ${cite('a')}</p><p style="height:400px">gap</p><p>C <span id="r2">${cite('a')}</span></p>${refs(['a'])}`);
+  const info = () => page.evaluate(() => {
+    const [m, p] = [document.querySelector('.side-note'), document.querySelector('.note-pop')];
+    return {margin: document.querySelectorAll('.side-note').length, hidden: p.offsetParent === null,
+      popTop: p.offsetParent && Math.round(p.getBoundingClientRect().top - document.getElementById('r2').getBoundingClientRect().top),
+      text: p.textContent.trim() === m.textContent.trim()};
+  });
+  expect(await info()).toMatchObject({margin: 1, hidden: true, text: true});
+  await page.hover('#r2 a');
+  const h = await info();
+  expect(h.hidden).toBe(false);
+  expect(Math.abs(h.popTop)).toBeLessThan(30);
+  await page.mouse.move(0, 0);
+  expect((await info()).hidden).toBe(true);
 });

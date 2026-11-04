@@ -387,3 +387,20 @@ test('a note cited twice on a page appears once', async ({page}) => {
   notes.forEach((ns, i) => expect(ns.join('').split('CITED REF').length - 1, `page ${i + 1}`).toBeLessThanOrEqual(1));
   expect(notes.flat().join('')).toContain('CITED REF');
 });
+
+// A note cited on different pages is shown on each of them (sidenotes.js shows it once in the margin).
+test('a note cited on different pages appears on each page', async ({page}) => {
+  const root = path.resolve(import.meta.dirname, '..');
+  const cite = `<a href="#ref-a" class="citation">a</a>`;
+  const body = `<main><p>First ${cite}</p>${para(60)}<p>Last ${cite}</p>
+<div id="refs"><div id="ref-a">CITED REF</div></div>
+<script src="file://${root}/js/sidenotes.js"></script></main>`;
+  const r = await paginate(page, fixture('note-pages', body));
+  expect(r.bad).toEqual([]);
+  const notes = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-page')].map(pg =>
+    [...pg.querySelectorAll('.footnotes')].map(f => f.textContent).join('').split('CITED REF').length - 1));
+  expect(notes.length).toBeGreaterThan(1);
+  expect(notes[0]).toBe(1);
+  expect(notes.at(-1)).toBe(1);
+  expect(notes.every(n => n <= 1)).toBe(true);
+});

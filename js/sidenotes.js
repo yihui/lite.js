@@ -44,9 +44,15 @@
       a3.id ||= 'sn-' + ++count;
       s.dataset.noteFor = a3.id;
       s.dataset.noteId = el.id;  // the same for all the references of a note
-      // a note that is cited again: show only the first copy when notes are blocks in the text
-      if (seen.has(el.id)) s.dataset.dup = ''; else seen.add(el.id);
-      layerOf(a3).append(s);
+      // the margin shows a note once; a repeated reference gets a copy after it, which pops up on
+      // hover (and which pages.js turns into the note of its page when paginated)
+      if (seen.has(el.id)) {
+        s.classList.replace('side-note', 'note-pop');
+        a3.after(s);
+      } else {
+        seen.add(el.id);
+        layerOf(a3).append(s);
+      }
       a3.classList.add('note-ref');
       el.remove();
     });
