@@ -1,4 +1,5 @@
 import {test, expect} from '@playwright/test';
+import path from 'node:path';
 import {fixture, paginate} from './helper.js';
 
 const para = (n, tag = 'p') => Array.from({length: n}, (_, i) =>
@@ -369,4 +370,20 @@ test('notes in a table header appear once', async ({page}) => {
   notes.forEach((t, i) => expect(t, `page ${i + 1}`).not.toContain('undefined'));
   expect(notes.filter(t => t.includes('NOTE ONE')).length).toBe(1);
   expect(notes[0]).toContain('NOTE ONE');
+});
+
+// A citation (or footnote) that is cited twice on a page shows its note once on that page.
+// sidenotes.js makes a copy of the note for each reference; the copies must not both go in.
+test('a note cited twice on a page appears once', async ({page}) => {
+  const root = path.resolve(import.meta.dirname, '..');
+  const cite = `<a href="#ref-a" class="citation">a</a>`;
+  const body = `<main><p>First ${cite} ${words}</p><p>Second ${cite} ${words}</p>
+<div id="refs"><div id="ref-a">CITED REF ${words.slice(0, 60)}</div></div>
+<script src="file://${root}/js/sidenotes.js"></script></main>`;
+  const r = await paginate(page, fixture('note-twice', body));
+  expect(r.bad).toEqual([]);
+  const notes = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-page')].map(pg =>
+    [...pg.querySelectorAll('.footnotes')].map(f => f.textContent)));
+  notes.forEach((ns, i) => expect(ns.join('').split('CITED REF').length - 1, `page ${i + 1}`).toBeLessThanOrEqual(1));
+  expect(notes.flat().join('')).toContain('CITED REF');
 });

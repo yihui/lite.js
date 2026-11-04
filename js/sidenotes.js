@@ -43,6 +43,7 @@
       const a3 = a.classList.contains('citation') ? a : a2;
       a3.id ||= 'sn-' + ++count;
       s.dataset.noteFor = a3.id;
+      s.dataset.noteId = el.id;  // the same for all the references of a note
       // a note that is cited again: show only the first copy when notes are blocks in the text
       if (seen.has(el.id)) s.dataset.dup = ''; else seen.add(el.id);
       layerOf(a3).append(s);

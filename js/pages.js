@@ -130,7 +130,14 @@
   // but in a block after the page body, as in the end: put the notes of the references
   // that are on the page there (and take the others off).
   function syncNotes(b = box) {
-    const body = b.children[1], ms = [...$$('.pagesjs-note', body)], items = ms.flatMap(m => notes.get(m));
+    const body = b.children[1], ms = [...$$('.pagesjs-note', body)], seen = new Set();
+    // a note cited more than once on the page is shown once (with its first reference)
+    const items = ms.flatMap(m => {
+      const k = m.dataset.noteId;
+      if (k && seen.has(k)) return [];
+      k && seen.add(k);
+      return notes.get(m);
+    });
     let c = $(':scope > .footnotes', b);
     if (!items.length) return c?.remove();
     c || body.after(c = make('div'));
@@ -809,7 +816,7 @@
       const p = el.previousElementSibling;
       if (!p || !has(p, 'note-ref')) return;
       const m = make('span', 'pagesjs-note');
-      m.hidden = true;
+      m.hidden = true; m.dataset.noteId = el.dataset.noteId ?? '';
       notes.set(m, kids(el)); el.replaceWith(m);
     });
   }
