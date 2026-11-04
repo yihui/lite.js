@@ -802,6 +802,9 @@
   // Replace the notes (footnotes and citations that sidenotes.js has put after their
   // references) with markers, which go with the references when the text is broken.
   function detachNotes() {
+    // (sidenotes.js puts them in a layer; bring each back after its reference)
+    $$('.footnotes[data-note-for]').forEach(el => d.getElementById(el.dataset.noteFor)?.after(el));
+    $$('.sidenotes').forEach(el => el.remove());
     $$('.footnotes').forEach(el => {
       const p = el.previousElementSibling;
       if (!p || !has(p, 'note-ref')) return;

@@ -91,6 +91,14 @@ div:has(> table) { overflow-x: auto; }
   &, & figure, & .figure { overflow-x: auto; }
 }
 
+/* notes: positioned by sidenotes.js in a layer that has the content edges of the article */
+.sidenotes { position: relative; height: 0; }
+.side-note {
+  position: absolute;
+  right: var(--side-margin);
+  margin: 0;
+}
+
 @media (min-width: 79.002em) {
   #TOC.side {
     .active {
@@ -108,16 +116,6 @@ div:has(> table) { overflow-x: auto; }
     &:has(.active) li:not(:has(.active)) ul {
       display: none;
     }
-  }
-  .note-ref { cursor: pointer; }
-  .note-ref:hover + .side {
-    display: inline-block;
-    background: #f8f8f8;
-    position: absolute;
-    z-index: 1;
-    margin-left: 1em;
-    padding: .5em;
-    box-sizing: content-box;
   }
 }
 @media (max-width: 79em) {
@@ -139,8 +137,10 @@ div:has(> table) { overflow-x: auto; }
       margin: 1em auto;
       background: none;
     }
-    :not(.note-ref) + .side { float: none; }
-    .footnote-ref + .footnotes { float: left; }
+    .side { float: none; }
+    .sidenotes { height: auto; }
+    .side-note { position: static; margin: 1em auto; }
+    .side-note[data-dup] { display: none; }
     .side > :last-child { margin-bottom: 0; }
     .embed-left, .embed-right {
       float: inherit;
