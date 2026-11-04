@@ -35,6 +35,6 @@ CHROMIUM_PATH=/usr/bin/chromium-browser npm test   # use an installed browser
 
 ## Releases
 
-1. Commit the version bump in `package.json` as `Bump to X.Y.Z` (patch +1 unless told otherwise), after tests pass.
-2. Tag that commit `vX.Y.Z` and push the commit and the tag. Pushing a `v*` tag triggers `.github/workflows/npm-publish.yml`, which builds the minified files, runs `npm publish`, and purges the CDN cache.
-3. Pushing and tagging are outward-facing: do them only when the user asks for a release.
+Use `./release.sh [-p] [-t] [patch|minor|major|X.Y.Z]` (default: patch). It runs the tests (`-t` skips them), bumps the version in `package.json` and `package-lock.json`, commits `Bump to X.Y.Z`, and tags `vX.Y.Z`. `-p` also pushes the commit and the tag; pushing a `v*` tag triggers `.github/workflows/npm-publish.yml`, which builds the minified files, runs `npm publish`, and purges the CDN cache.
+
+Pushing and tagging are outward-facing: run the script (and pass `-p`) only when the user asks for a release.
