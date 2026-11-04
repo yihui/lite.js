@@ -36,9 +36,6 @@ article h2 { border: 0; }
 
 /* tinted full-bleed navbar */
 .site-nav {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   padding: .5rem 0;
   background: var(--pk-nav-bg);
   box-shadow: 0 0 0 100vmax var(--pk-nav-bg);
@@ -81,13 +78,13 @@ article:not(.pagesjs *), .frontmatter {
 /* "On this page" */
 .side { background: var(--pk-bg); }
 
-#TOC { position: sticky; z-index: -1; }
+#TOC { position: sticky; }
 #TOC.side {
   .active { color: var(--pk-primary); }
   &::before {
     content: "On this page";
     display: block;
-    margin: 1.5rem 0 .5rem;
+    margin: .5rem 0;
     font-size: 1.25rem;
     font-weight: 500;
   }
