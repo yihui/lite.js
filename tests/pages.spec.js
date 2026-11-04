@@ -354,3 +354,19 @@ test('no lone line after a page of a float', async ({page}) => {
     }
   }
 });
+
+// A note in a table header (a citation in <th>) stays with the original header on the first
+// page; the copies of the header on the next pages have no note (and no "undefined").
+test('notes in a table header appear once', async ({page}) => {
+  const rows = Array.from({length: 150}, (_, i) => `<tr><td>a${i} ${words.slice(0, 80)}</td></tr>`).join('');
+  const body = `<main><table><thead><tr><th>A<sup class="note-ref">1</sup><div class="footnotes"><p>NOTE ONE ${words.slice(0, 60)}</p></div></th></tr></thead>
+<tbody>${rows}</tbody></table></main>`;
+  const r = await paginate(page, fixture('table-header-note', body));
+  expect(r.bad).toEqual([]);
+  expect(r.pages.length).toBeGreaterThan(1);
+  const notes = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-page')].map(pg =>
+    pg.querySelector('.footnotes')?.textContent ?? ''));
+  notes.forEach((t, i) => expect(t, `page ${i + 1}`).not.toContain('undefined'));
+  expect(notes.filter(t => t.includes('NOTE ONE')).length).toBe(1);
+  expect(notes[0]).toContain('NOTE ONE');
+});
