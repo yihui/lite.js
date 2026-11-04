@@ -28,7 +28,8 @@ div:has(> table) { overflow-x: auto; }
 /* left/right elements*/
 .side {
   width: var(--side-width);
-  margin: 0 auto;
+  margin-top: -1em;
+  padding-top: 1em;
   max-height: 100vh;
   overflow: auto;
 }
@@ -97,7 +98,6 @@ div:has(> table) { overflow-x: auto; }
 .side-note {
   position: absolute;
   right: var(--side-margin);
-  margin: 0;
 }
 
 @media (min-width: 79.002em) {
