@@ -59,7 +59,8 @@ ${refs(['a', 'b', 'c', 'd', 'e', 'f'])}<div class="footnotes"><ol><li id="fn1"><
       inside: sides.filter(s => !s.parentElement.previousElementSibling?.contains(document.getElementById(s.dataset.noteFor))).length,
       right: sides.map(s => s.getBoundingClientRect().right),
       outside: sides.every(s => s.getBoundingClientRect().left >= ar.right),
-      dy: sides.map(s => s.getBoundingClientRect().top - document.getElementById(s.dataset.noteFor).getBoundingClientRect().top),
+      // content top: .side has top padding (and the same negative margin) to cover sticky boxes
+      dy: sides.map(s => s.getBoundingClientRect().top + parseFloat(getComputedStyle(s).paddingTop) - document.getElementById(s.dataset.noteFor).getBoundingClientRect().top),
       font: [...new Set(sides.map(s => getComputedStyle(s).fontSize))],
     };
   });
