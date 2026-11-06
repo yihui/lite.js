@@ -601,21 +601,26 @@
   }
   // A copy of a repeated table header/footer. The notes in it appear once, on the first
   // page: the first copy takes the markers of the original, so later copies have none.
-  function cloneHold(el) {
+  // undo gets the functions that give the markers back (if the copy is discarded).
+  function cloneHold(el, undo) {
     const c = el.cloneNode(true), ms = $$('.pagesjs-note', c);
-    $$('.pagesjs-note', el).forEach((m, i) => { notes.set(ms[i], notes.get(m)); m.remove(); });
+    $$('.pagesjs-note', el).forEach((m, i) => {
+      const p = m.parentNode, next = m.nextSibling;
+      notes.set(ms[i], notes.get(m)); m.remove();
+      undo.push(() => p.insertBefore(m, next));
+    });
     return c;
   }
   // split table rows
   function splitTable(el, container, prev, first) {
     const head = cut(el, container, first), tb = el.tBodies[0], tb2 = tb.cloneNode(),
-      rows = [...tb.rows], n = rows.length, min = prev ? 0 : 1;
+      undo = [], rows = [...tb.rows], n = rows.length, min = prev ? 0 : 1;
     // the caption (which is not broken) goes with the first rows, unless it is below the table
     const cap = el.caption && style(el.caption).captionSide !== 'bottom' ? el.caption : null;
-    function clear() { cap && el.prepend(cap); head.innerHTML = ''; }
+    function clear() { cap && el.prepend(cap); head.innerHTML = ''; undo.reverse().forEach(f => f()); }
     cap && head.append(cap);
     // copy table header and footer (the header goes first, as in the original)
-    [el.tHead, tb2, el.tFoot].forEach(t => t && head.append(t === tb2 ? t : cloneHold(t)));
+    [el.tHead, tb2, el.tFoot].forEach(t => t && head.append(t === tb2 ? t : cloneHold(t, undo)));
     // Put all rows in the page and lay them out once. The rows whose bottoms are
     // below (the bottom of the last row - the overflow) do not fit; put them back.
     tb2.append(...rows);

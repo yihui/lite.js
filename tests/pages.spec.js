@@ -404,3 +404,23 @@ test('a note cited on different pages appears on each page', async ({page}) => {
   expect(notes.at(-1)).toBe(1);
   expect(notes.every(n => n <= 1)).toBe(true);
 });
+
+// When no row of a table fits at the bottom of a page, the table (and the notes in its
+// header) moves to the next page: the notes must not get lost with the discarded copy.
+test('notes in a table header are kept when the table moves to the next page', async ({page}) => {
+  const rows = Array.from({length: 60}, (_, i) => `<tr><td>a${i}</td></tr>`).join('');
+  const body = `<main><div style="height: BFILLpx"></div><table><thead><tr><th>A<sup class="note-ref">1</sup><div class="footnotes"><p>NOTE ONE</p></div></th></tr></thead>
+<tbody>${rows}</tbody></table></main>`;
+  const head = '<style>p, td, th {margin: 0; line-height: 20px; font-size: 14px}</style>';
+  await paginate(page, fixture('table-note-probe', '<main><p>x</p></main>', '', head));
+  const B = await page.evaluate(() => document.querySelector('.pagesjs-body').getBoundingClientRect().height);
+  for (const f of range(0, 120, 10)) {
+    const r = await paginate(page, fixture('table-note-move', body.replace('BFILL', B - f), '', head));
+    expect(r.bad).toEqual([]);
+    const notes = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-page')]
+      .filter(pg => pg.querySelector('tbody')).map(pg => pg.querySelector('.footnotes')?.textContent ?? ''));
+    expect(notes.length, `free ${f}`).toBeGreaterThan(0);
+    expect(notes[0], `free ${f}: the first page of the table`).toContain('NOTE ONE');
+    expect(notes.filter(t => t.includes('NOTE ONE')).length, `free ${f}`).toBe(1);
+  }
+});
