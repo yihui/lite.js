@@ -508,8 +508,8 @@
     rmCls(b, ...has(a, fr_1) ? [fr_cls, fr_1, fr_2] : [fr_1]);
     a.remove();
   }
-  // If all children fit, head is the last piece, which has bottom margin/padding/
-  // border that were hidden when it was measured as a non-last piece; if it is too
+  // If all children fit, head is the last piece, which has bottom margin/border
+  // that were hidden when it was measured as a non-last piece; if it is too
   // big now, break the last child (or push it out entirely if it can't be broken).
   function fitLastPiece(head, el, prev) {
     addCls(head, fr_2);

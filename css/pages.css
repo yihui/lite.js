@@ -112,13 +112,11 @@
       &:not(.fragment-first) {
         border-top: none;
         margin-top: 0;
-        padding-top: 0;
         & > thead { opacity: .5; }
       }
       &:not(.fragment-last) {
         border-bottom: none;
         margin-bottom: 0;
-        padding-bottom: 0;
         & > tfoot { opacity: .5; }
       }
     }

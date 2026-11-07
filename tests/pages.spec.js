@@ -79,7 +79,7 @@ const range = (from, to, by) => Array.from({length: Math.ceil((to - from) / by)}
 
 test('callout is broken to fill the page', async ({page}) => {
   const tight = '<style>p {margin: 0; line-height: 20px} fieldset {margin: 0; padding: 4px} legend {padding: 0}</style>';
-  // the callout fits only if the border and padding at the bottom are hidden, which is
+  // the callout fits only if the border at the bottom is hidden, which is
   // the case when it is broken; there is room for the legend and a few lines of text
   const pages = await firstPages(page, 'fill-callout', `<fieldset><legend>Tip</legend><p>${words}</p></fieldset>`,
     h => range(h - 30, h, 2), tight);
