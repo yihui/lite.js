@@ -235,7 +235,7 @@ test('the first page is marked if it has the frontmatter', async ({page}) => {
   expect(await header(0)).not.toBe('none');
 });
 
-// A float (captioned figure, or an element with the class "float") that does not fit waits
+// A float (captioned figure, or an element with the class "pagesjs-float") that does not fit waits
 // for the next page, where it comes first, and the text after it fills the page.
 test('floats wait for the next page and the text fills the gap', async ({page}) => {
   const fig = (id, h, cls = 'figure') => `<div class="${cls}" id="${id}"><div style="height: ${h}px">FIG${id}</div><div class="caption">cap ${id}</div></div>`;
@@ -248,10 +248,10 @@ test('floats wait for the next page and the text fills the gap', async ({page}) 
     // nothing lost or duplicated (the order changes: floats move)
     expect([...r.pages.map(p => p.text).join('')].sort().join('')).toBe([...r.before].sort().join(''));
     const tops = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-body')].map(b =>
-      [...b.querySelectorAll('.pagesjs-float')].map(e => e.id)));
+      [...b.querySelectorAll('.pagesjs-waited')].map(e => e.id)));
     return {r, tops};
   };
-  for (const cls of ['figure', 'float']) {
+  for (const cls of ['figure', 'pagesjs-float']) {
     const {r, tops} = await run(fig('a', 300, cls));
     expect(r.pages[0].text, `${cls}: the text fills page 1`).toContain('Paragraph0');
     expect(r.pages[0].text).not.toContain('FIGa');
@@ -279,7 +279,7 @@ test('floats keep their wrappers', async ({page}) => {
   const r = await paginate(page, fixture('float-wrap', body, '', head));
   expect(r.bad).toEqual([]);
   const f = await page.evaluate(() => {
-    const e = document.querySelector('.pagesjs-float'), w = e.parentNode, cs = getComputedStyle(w);
+    const e = document.querySelector('.pagesjs-waited'), w = e.parentNode, cs = getComputedStyle(w);
     return {
       page: [...document.querySelectorAll('.pagesjs-page')].indexOf(e.closest('.pagesjs-page')),
       tag: w.tagName, cls: w.className, color: getComputedStyle(e).color, pad: cs.paddingTop, border: cs.borderTopWidth
@@ -464,4 +464,38 @@ test('a collapsed TOC button opens a clone of the TOC', async ({page}) => {
   await expect(panel).toBeVisible();  // (stays open after a link is clicked)
   await page.mouse.click(5, 500);  // outside the panel
   await expect(panel).toBeHidden();
+});
+
+// An element with the class pagesjs-wide takes a landscape page of its own (and is not
+// full width there). The same whether the window is wide or narrow (article.css caps
+// .fullwidth at the viewport).
+test('pagesjs-wide takes a landscape page', async ({page}) => {
+  const table = `<table><thead><tr>${
+    Array.from({length: 12}, (_, i) => `<th style="white-space:nowrap">Column ${i} ${'wide '.repeat(4)}</th>`).join('')
+  }</tr></thead><tbody><tr>${Array.from({length: 12}, (_, i) => `<td>${i}</td>`).join('')}</tr></tbody></table>`;
+  const body = `<main>${para(2)}<div id="w" class="fullwidth pagesjs-wide">${table}</div>${para(2)}
+<div id="n" class="fullwidth">${table}</div></main>`;
+  const size = async (vw) => {
+    await page.setViewportSize({width: vw, height: 900});
+    const r = await paginate(page, fixture('wide-table', body));
+    expect(r.bad).toEqual([]);
+    return page.evaluate(() => {
+      const boxes = document.querySelectorAll('.page-wide'), box = boxes[0], w = document.getElementById('w');
+      return {n: document.querySelectorAll('.pagesjs-page').length, boxes: boxes.length,
+        inside: box?.contains(w), full: w.classList.contains('fullwidth'),
+        other: document.getElementById('n').closest('.pagesjs-page').classList.contains('page-wide'),
+        w: box?.getBoundingClientRect().width, h: box?.getBoundingClientRect().height,
+        footer: !!box?.querySelector('.pagesjs-footer')};
+    });
+  };
+  const narrow = await size(800), wideWin = await size(1400);
+  for (const s of [narrow, wideWin]) {
+    expect(s.boxes).toBe(1);
+    expect(s.inside).toBe(true);
+    expect(s.full, 'not full width').toBe(false);
+    expect(s.other, 'only marked elements get a landscape page').toBe(false);
+    expect(s.w).toBeGreaterThan(s.h);
+    expect(s.footer).toBe(true);
+  }
+  expect(narrow.n).toBe(wideWin.n);
 });

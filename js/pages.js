@@ -19,8 +19,10 @@
 //    element has the classes pagesjs-fragmented, fragment-first, fragment-last
 //    (the pieces can be styled differently in pages.css).
 //    A float (see isFloat()) that does not fit is not broken: it waits for the next
-//    page (class pagesjs-float), and the content after it fills the space. A float
-//    that is very tall takes a whole page (nothing else fits on it), centered.
+//    page (class pagesjs-waited), and the content after it fills the space. A float
+//    that is very tall takes a whole page (nothing else fits on it), centered. So does
+//    an element with the class pagesjs-wide (e.g., a table with many columns), on a
+//    landscape page (class page-wide, see takePage()).
 // 4. Each page contains empty copies of the ancestors of the content root, so
 //    CSS selectors that depend on them still work (see ctx()).
 // 5. In the end, page numbers and titles are added to the headers/footers.
@@ -54,7 +56,7 @@
   const
     book = $$('h1').length > 1,  // a document with multiple <h1> is a book (chapters)
     // elements that are never broken across pages (CSS break-inside: avoid also works)
-    atomic = 'h1,h2,h3,h4,h5,h6,hr,img,svg,video,canvas,iframe,object,embed,math,mjx-container,figure,.figure,.float,.caption,details',
+    atomic = 'h1,h2,h3,h4,h5,h6,hr,img,svg,video,canvas,iframe,object,embed,math,mjx-container,figure,.figure,.pagesjs-float,.pagesjs-wide,.caption,details',
     // classes of the pieces of a broken element
     fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
     // pixels that the content may hang over the bottom of a page (the page has a
@@ -86,7 +88,8 @@
     box, box_body,  // the current page and its body
     box_ctx,  // where the content goes in the body (see ctx())
     wrap = [],  // the ancestors of the content root (outermost first)
-    H, B,  // the height of a page and of its body
+    H, B,  // the height of the current page and of its body
+    portrait, landscape,  // [H, B] of a normal page and of a landscape page (see takePage())
     H_min, H_line,  // the height of a single-line paragraph (with margins) and of a line
     used,  // the height of the content of the page when it was last measured (see overflows())
     whole,  // the float that takes the page that is being filled (see takePage())
@@ -126,6 +129,7 @@
   function newPage(el) {
     el && !$('.pagesjs-body', el) && el.insertAdjacentHTML('afterbegin', tpl.innerHTML);
     box = el || tpl.cloneNode(true); box_body = box.children[1]; box_ctx = null;
+    portrait && ([H, B] = portrait);
     boxes.includes(box) || boxes.push(box);  // store new pages in boxes
     return box;
   }
@@ -175,10 +179,11 @@
   // compute page numbers and temporarily remove the box
   function finish(box) {
     syncNotes(box);
-    const h = box.scrollHeight;
+    const h = box.scrollHeight, wide = has(box, 'page-wide'), Hb = (wide ? landscape : portrait)[0];
     // tolerate a few pixels (and the margin of the last element) hanging over the page bottom
-    if (h - trailingMargin(box.children[1]) > H && !box.dataset.pagesOffset) {
-      const n = calcPages(box, h);
+    // (a landscape page is not continued; what sticks out of it is reported, see problems())
+    if (!wide && h - trailingMargin(box.children[1]) > Hb && !box.dataset.pagesOffset) {
+      const n = calcPages(box, h, Hb);
       if (n > 1) box.dataset.pagesOffset = n, guessed.add(box);
     }
     box.remove();
@@ -201,7 +206,7 @@
   // calculate how many new pages we need for overflowed content (this is just
   // an estimate; if not accurate, use <div class="pagesjs-page" data-pages-offset="N">
   // to provide a number manually)
-  function calcPages(box, h) {
+  function calcPages(box, h, H) {
     let n = +box.dataset.pagesOffset;
     if (n) return n;
     n = Math.ceil(h/H);
@@ -308,18 +313,22 @@
     return rest;
   }
 
-  // Floats are captioned figures and elements with the class "float". They are never
+  // Floats are captioned figures and elements with the class "pagesjs-float". They are never
   // broken: one that does not fit where it is waits for the next page, and the content
   // after it fills the page, as in LaTeX. They keep their order (a float waits if an
   // earlier one does), and wait at most until the end of the chapter (book) or the root.
   function isFloat(el) {
-    return el.matches('.float') || el.matches('figure, .figure') && !!$('figcaption, .caption', el);
+    return el.matches('.pagesjs-float, .pagesjs-wide') || el.matches('figure, .figure') && !!$('figcaption, .caption', el);
   }
   // does a float take a whole page?
-  function isTall(f) { return rect(f).height > B * floatPage / 100; }
+  function isTall(f) { return has(f, 'pagesjs-wide') || rect(f).height > B * floatPage / 100; }
   // let a float take the page: overflows() keeps everything else off the page, and
-  // the class makes the body center the float vertically (see pages.css)
-  function takePage(f) { whole = f; addCls(box, 'page-float'); }
+  // the class makes the body center the float vertically (see pages.css). A wide one
+  // gets a landscape page (the sizes of the page are those of the paper turned).
+  function takePage(f) {
+    whole = f; addCls(box, 'page-float');
+    has(f, 'pagesjs-wide') && (addCls(box, 'page-wide'), [H, B] = landscape);
+  }
   // Does a float (attached to container) stay where it is? Not if floats wait before it,
   // or if it takes a whole page and there is content before it: it goes to a page of its own.
   function stays(f, container) {
@@ -349,7 +358,7 @@
       if (hasPrev(out)) {
         if (isTall(f) || overflows()) return out.remove();
       } else isTall(f) && takePage(f);
-      floats.shift(); addCls(f, 'pagesjs-float');
+      floats.shift(); addCls(f, 'pagesjs-waited');
     }
   }
   function flush() {
@@ -870,6 +879,8 @@
   // remove the classes of the TOC, footnotes, etc. that put them in the margin on
   // screen but are not suitable for printing
   function removeSideClasses() {
+    // a wide element has a page of its own, so it is not full width
+    $$('.pagesjs-wide.fullwidth').forEach(el => rmCls(el, 'fullwidth'));
     $$(':is(#TOC, .footnotes, .chapter-before, .chapter-after):is(.side-left, .side-right).side').forEach(el => {
       rmCls(el, 'side', 'side-left', 'side-right');
     });
@@ -978,7 +989,11 @@
       d.body.append(progress);
     }
     d.body.insertAdjacentElement('afterbegin', newPage());
-    H = (box.clientHeight || window.innerHeight) + tol; B = box_body.clientHeight || H;  // use window height if box height not specified
+    // (use window height if box height not specified)
+    const size = () => { const h = (box.clientHeight || window.innerHeight) + tol; return [h, box_body.clientHeight || h]; };
+    portrait = size();
+    addCls(box, 'page-wide'); landscape = size(); rmCls(box, 'page-wide');
+    [H, B] = portrait;
     removeSideClasses();
     cls.add('pagesjs-filling');
     measureMinHeight();

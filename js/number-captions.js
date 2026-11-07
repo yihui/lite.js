@@ -13,6 +13,6 @@
         el.insertAdjacentHTML('afterbegin', `<span class="cap-num">${label}${i + 1}${colon}</span> `);
     });
   }
-  NUM('figure > figcaption, .figure > p.caption, .float > .figcaption', cfg?.figLabel || 'Figure ');
+  NUM('figure > figcaption, .figure > p.caption, .pagesjs-float > .figcaption', cfg?.figLabel || 'Figure ');
   NUM('table > caption', cfg?.tabLabel || 'Table ');
 })(document);

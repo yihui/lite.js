@@ -9,9 +9,17 @@
   --page-header-bottom: 40px;
   --page-footer-height: 40px;
   --page-footer-top: 40px;
+  /* (copies, so that a landscape page can swap the sizes without a cycle) */
+  --paper-w: var(--paper-width);
+  --paper-h: var(--paper-height);
 }
 @page {
   size: var(--paper-width) var(--paper-height);
+  margin: 0;
+}
+/* the page of a float that is too wide for a portrait page (pages.js): the paper turned */
+@page wide {
+  size: var(--paper-height) var(--paper-width);
   margin: 0;
 }
 @page multiple {
@@ -20,6 +28,11 @@
 }
 .page-multiple {
   page: multiple;
+}
+.page-wide {
+  page: wide;
+  --paper-width: var(--paper-h);
+  --paper-height: var(--paper-w);
 }
 .pagesjs {
   padding: 0;
@@ -39,8 +52,9 @@
   .pagesjs-page {
     width: var(--paper-width);
     height: var(--paper-height);
+    flex: none;  /* (keep the paper size in a narrow window: the content is laid out for it) */
     padding: var(--paper-margin-top) var(--paper-margin-right) var(--paper-margin-bottom) var(--paper-margin-left);
-    break-after: page;
+    break-before: page;  /* (not break-after: a named page after a break-after gets a blank page in Chrome) */
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -130,6 +144,8 @@
       width: var(--paper-width);
       margin-left: calc(0px - var(--paper-margin-left));
       transform: none;
+      /* (article.css caps the content at the viewport, which differs between screen and print) */
+      & * { max-width: calc(var(--paper-width) - 4em); }
     }
     /* the page of a float that takes the whole page (the class is set by pages.js): center it */
     &.page-float .pagesjs-body {
@@ -275,6 +291,7 @@
   .pagesjs-tools { display: none; }
   .pagesjs-hit { outline: none; }
   .pagesjs {
+    display: block;  /* (named pages, i.e., landscape ones, don't work in a flex container) */
     margin: 0;
     gap: 0;
     .page-multiple {
