@@ -424,3 +424,44 @@ test('notes in a table header are kept when the table moves to the next page', a
     expect(notes.filter(t => t.includes('NOTE ONE')).length, `free ${f}`).toBe(1);
   }
 });
+
+test('a button lists problems to click through', async ({page}) => {
+  const url = fixture('report', `<main><p>Intro</p>
+<div id="wide" style="width: 200px; overflow: auto"><div style="width: 600px; height: 10px">x</div><img class="figure" alt="" style="width: 500px"></div>
+<div id="out" class="figure" style="width: 3000px; height: 20px">z</div>
+<div id="fine" style="overflow: auto">ok</div></main>`);
+  await page.goto(url + '?paged=1');
+  const btn = page.locator('.pagesjs-tools > button'), panel = page.locator('.pagesjs-panel'), hit = page.locator('.pagesjs-hit');
+  await expect(btn).toHaveText('\u26a0');
+  await expect(panel).toBeHidden();
+  await btn.click();
+  await expect(panel.locator('li')).toHaveCount(2);
+  await panel.locator('li').nth(1).click();
+  await expect(hit).toHaveAttribute('id', 'out');
+  await panel.locator('li').nth(0).click();
+  await expect(hit).toHaveAttribute('id', 'wide');
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(hit).toHaveCount(0);
+});
+
+test('no button for problems if there are none', async ({page}) => {
+  await page.goto(fixture('clean', `<main>${para(3)}</main>`) + '?paged=1');
+  await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
+  await expect(page.locator('.pagesjs-tools')).toHaveCount(0);
+});
+
+test('a collapsed TOC button opens a clone of the TOC', async ({page}) => {
+  const url = fixture('tocbtn', `<main><nav id="TOC"><ul><li><a href="#a">A</a></li></ul></nav>${para(20).replace('<p>', '<h2 id="a">A</h2><p>')}</main>`);
+  await page.goto(url + '?paged=1');
+  const btn = page.locator('.pagesjs-tools > button'), panel = page.locator('.pagesjs-panel');
+  await expect(btn).toBeVisible();
+  await expect(panel).toBeHidden();
+  await btn.click();
+  await expect(panel.locator('a[href="#a"]')).toBeVisible();
+  expect(await panel.locator('#TOC').count()).toBe(0);  // (the id stays unique)
+  await panel.locator('a').click();
+  await expect(panel).toBeVisible();  // (stays open after a link is clicked)
+  await page.mouse.click(5, 500);  // outside the panel
+  await expect(panel).toBeHidden();
+});

@@ -174,6 +174,49 @@
   color: white;
   font: 14px sans-serif;
 }
+.pagesjs-hit {
+  outline: 3px solid #e33;
+  outline-offset: 2px;
+}
+.pagesjs-tools {
+  position: fixed;
+  top: 1em;
+  left: 1em;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .5em;
+  font: 14px sans-serif;
+  button, .pagesjs-panel {
+    background: Canvas;
+    color: CanvasText;
+    border: 1px solid;
+    border-radius: .3em;
+  }
+  button {
+    width: 2.2em;
+    height: 2.2em;
+    padding: 0;
+    cursor: pointer;
+  }
+}
+.pagesjs-panel {
+  position: absolute;
+  top: 0;
+  left: calc(100% + .5em);  /* (beside the buttons) */
+  width: min(30em, calc(100vw - 5em));
+  max-height: calc(100vh - 2em);  /* (the panel starts at the top of the toolbar, 1em from the top) */
+  overflow: auto;
+  padding: .5em 1em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+  ul { margin: 0; padding-left: 1.2em; list-style: none; }
+  & > nav > ul, .pagesjs-problems { padding-left: 0; }
+  a { display: block; padding: .15em 0; color: inherit; text-decoration: none; }
+  a::before { content: attr(data-page-number); float: right; opacity: .6; }
+  a:hover { text-decoration: underline; }
+  li { cursor: pointer; padding: .15em 0; }
+}
 .pagesjs-settle .pagesjs-body {
   /* the probe page that holds all content has sides, but normal pages don't */
   padding: 0 !important;
@@ -229,6 +272,8 @@
   }
 }
 @media print {
+  .pagesjs-tools { display: none; }
+  .pagesjs-hit { outline: none; }
   .pagesjs {
     margin: 0;
     gap: 0;

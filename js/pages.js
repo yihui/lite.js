@@ -97,6 +97,30 @@
     progress, n_done = 0,  // the progress indicator and the number of finished pages
     finished;  // is the pagination finished?
 
+  // Diagnosis: pages that overflow, elements with scrollbars, and unbreakable elements that
+  // stick out of the page (listed in a panel, see addTools())
+  const hit = 'pagesjs-hit', px = n => Math.round(n);
+  function problems() {
+    const out = [], sc = /auto|scroll/, scrolls = [];
+    boxes.forEach((b, i) => {
+      const body = b.children[1], r = rect(body), p = `p.${i + 1}`;
+      has(b, 'page-multiple') && out.push([b, `${p} overflows`]);
+      $$('*', body).forEach(el => {
+        const cs = style(el), name = el.tagName.toLowerCase() + (el.className && '.' + el.classList[0]);
+        if (sc.test(cs.overflowX) || sc.test(cs.overflowY)) {  // (read sizes only of these: each is a layout read)
+          const {clientWidth: cw, clientHeight: ch, scrollWidth: sw, scrollHeight: sh} = el;
+          if (sc.test(cs.overflowX) && sw > cw + 1 || sc.test(cs.overflowY) && sh > ch + 1)
+            return scrolls.push(el), out.push([el, `${p} ${name} scrolls: ${sw}x${sh} in ${cw}x${ch}`]);
+        }
+        // (what sticks out of a scrolling element is reached by scrolling it)
+        const e = el.matches(atomic) && !scrolls.some(s => s.contains(el)) && rect(el);
+        e && (e.right > r.right + 1 || e.bottom > r.bottom + 1) &&
+          out.push([el, `${p} ${name} sticks out: ${px(e.width)}x${px(e.height)} on ${px(r.width)}x${px(r.height)}`]);
+      });
+    });
+    return out;
+  }
+
   // --- Page boxes ----------------------------------------------------
 
   function newPage(el) {
@@ -776,6 +800,45 @@
     });
   }
 
+  // Buttons (top left) that open panels: a clone of the TOC, collapsed by default so that
+  // readers can get it at any time; and the problems (if any) to click through.
+  function addTools() {
+    const tools = make('div', 'pagesjs-tools'), toc = $('#TOC:not(.chapter-toc)'), bad = problems();
+    const closeAll = () => {
+      $$('.pagesjs-panel', tools).forEach(p => p.hidden = true);
+      $('.' + hit)?.classList.remove(hit);
+    };
+    function add(text, title, content) {
+      const btn = make('button'), panel = make('div', 'pagesjs-panel');
+      btn.textContent = text; btn.title = title; panel.hidden = true; panel.append(content);
+      btn.onclick = () => { const was = panel.hidden; closeAll(); panel.hidden = !was; };
+      tools.append(btn, panel);
+      return panel;
+    }
+    if (toc) {
+      const nav = toc.cloneNode(true);
+      nav.removeAttribute('id'); nav.className = '';  // (not the TOC of the document any more, nor in the margin)
+      add('\u2630', 'Contents', nav);
+    }
+    if (bad.length) {
+      const ul = make('ul', 'pagesjs-problems');
+      bad.forEach(([el, msg]) => {
+        const li = make('li');
+        li.textContent = msg;
+        li.onclick = () => {
+          $('.' + hit)?.classList.remove(hit);
+          addCls(el, hit);
+          el.scrollIntoView({block: 'center'});
+        };
+        ul.append(li);
+      });
+      add('\u26a0', 'Problems (may be cut off or overflow)', ul);
+    }
+    tools.children.length && d.body.append(tools);
+    on('keydown', e => e.key === 'Escape' && closeAll());
+    on('click', e => tools.contains(e.target) || closeAll());
+  }
+
   // --- Pagination ----------------------------------------------------
 
   function ownText(el) {
@@ -930,6 +993,7 @@
       checkOffsets();
       numberPages();
       numberToc();
+      addTools();
       hold.remove(); progress?.remove();
       finished = true;
       const over = boxes.filter(b => b.classList.contains('page-multiple')).length;
