@@ -3,7 +3,8 @@
   // foo.html and foo are the same page; so are dir/index.html and dir/
   const norm = p => p.replace(/\/index(\.html)?$/, '/').replace(/\.html$/, '').replace(/(.)\/$/, '$1'),
     l = location, p = norm(l.pathname),
-    links = [...d.querySelectorAll('nav a[href]')].filter(a => a.origin === l.origin);
+    // a bare #hash link only jumps within this page, so it does not say which page is current
+    links = [...d.querySelectorAll('nav a[href]')].filter(a => a.origin === l.origin && a.getAttribute('href')[0] !== '#');
   let cur = links.filter(a => norm(a.pathname) === p);
   // no exact match: the deepest link (foo/ or foo.html) whose section contains this page is current
   if (!cur.length) {

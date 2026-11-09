@@ -141,7 +141,8 @@ expressions (by default, MathJax ignores math in `<code>`).
 Highlight the links in `<nav>` that point to the current page by setting
 `aria-current="page"` on them (style them via `nav a[aria-current]`). The
 `.html` extension, `index.html`, trailing slashes, query strings, and hashes are
-ignored when comparing URLs, so `foo.html` matches `foo`.
+ignored when comparing URLs, so `foo.html` matches `foo`. Bare #hash links (e.g., `#sec`) are skipped: they
+only jump within the current page.
 
 ## no-highlight.js
 
