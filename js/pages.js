@@ -1,36 +1,24 @@
-// Paginate an HTML page: move elements into page boxes (e.g., A4 paper) such that
-// each box holds as much content as possible without exceeding the page height.
+// Paginate an HTML page into page boxes (e.g., A4) so each holds as much content as fits.
 //
-// How it works:
-// 1. The content root (e.g., <main>) is emptied, and all its content is laid out
-//    once on a probe page (probe()), so that content that reacts to the page width
-//    settles and the positions of the blocks are known.
-// 2. The children are put on pages one by one (fill() -> place()). Only the current
-//    page is in the DOM, so measuring it is cheap (box.scrollHeight > H means the
-//    page overflows), but each measurement is a forced layout; so children that
-//    surely fit, according to their positions on the probe page, are put on a page
-//    together and measured once (fitting()).
-// 3. When an element makes the page overflow, split() puts as much of it as
-//    possible on the current page and returns the rest, which goes to the next
-//    page. An element can be broken in different ways (kindOf()): block elements
-//    (e.g., lists and quotes) are cloned and their children are moved into the
-//    clone as in step 2, with the child that overflows broken recursively; text,
-//    table rows, and code lines are broken by lines/rows. Every piece of a broken
-//    element has the classes pagesjs-fragmented, fragment-first, fragment-last
-//    (the pieces can be styled differently in pages.css).
-//    A float (see isFloat()) that does not fit is not broken: it waits for the next
-//    page (class pagesjs-waited), and the content after it fills the space. A float
-//    that is very tall takes a whole page (nothing else fits on it), centered. So does
-//    an element with the class pagesjs-wide (e.g., a table with many columns), on a
-//    landscape page (class page-wide, see takePage()).
-// 4. Each page contains empty copies of the ancestors of the content root, so
-//    CSS selectors that depend on them still work (see ctx()).
-// 5. In the end, page numbers and titles are added to the headers/footers.
+// 1. The content root (e.g., <main>) is emptied and laid out once on a probe page, so
+//    width-dependent content settles and block positions are known (probe()).
+// 2. Children go onto pages one by one (fill() -> place()). Only the current page is in
+//    the DOM; children that surely fit by their probe positions are measured together (fitting()).
+// 3. When an element overflows, split() puts as much as possible on the page, the rest on the
+//    next. kindOf() decides how: blocks are cloned and their children moved (recursively);
+//    text, table rows, and code lines are broken by lines/rows. Pieces get the classes
+//    pagesjs-fragmented, fragment-first, fragment-last (styled in pages.css).
+//    Floats (isFloat()) are never broken: one that does not fit waits for the next page
+//    (pagesjs-waited) while later content fills the gap. A tall float takes a page alone,
+//    and a wide one (.pagesjs-wide) a landscape page (takePage()).
+// 4. Each page holds empty clones of the ancestors of the content root, so CSS selectors
+//    that depend on them still match (ctx()).
+// 5. In the end, page numbers and titles go into data-* attributes for the headers/footers.
 (d => {
 
   // --- Utilities -----------------------------------------------------
 
-  function  $(s, el = d) { return el?.querySelector(s); }
+  function $(s, el = d) { return el?.querySelector(s); }
   function $$(s, el = d) { return el ? el.querySelectorAll(s) : []; }
   function nChild(el) { return el.childElementCount; }
   function kids(el) { return [...el.children]; }
@@ -54,31 +42,27 @@
   // --- Constants and state -------------------------------------------
 
   const
-    book = $$('h1').length > 1,  // a document with multiple <h1> is a book (chapters)
-    // elements that are never broken across pages (CSS break-inside: avoid also works)
+    book = $$('h1').length > 1,  // several <h1>: a book, whose chapters start on new pages
+    // never broken across pages (CSS break-inside: avoid also works)
     atomic = 'h1,h2,h3,h4,h5,h6,hr,img,svg,video,canvas,iframe,object,embed,math,mjx-container,figure,.figure,.pagesjs-float,.pagesjs-wide,.caption,details',
-    // classes of the pieces of a broken element
     fr_cls = 'pagesjs-fragmented', fr_1 = 'fragment-first', fr_2 = 'fragment-last',
-    // pixels that the content may hang over the bottom of a page (the page has a
-    // much larger padding there), since sizes are rounded and the browsers differ
+    // px that content may hang over the page bottom (the page has more padding there;
+    // browsers round sizes differently)
     tol = 3,
-    // floats taller than this percentage of the page body take a whole page (see stays());
-    // set via <body data-pages-float-page="...">, e.g., 100 for never (in LaTeX, a float
-    // taller than 70% of the page, \topfraction, can't share a page with text at its top)
+    // floats taller than this % of the body take a page (<body data-pages-float-page="...">;
+    // 100 for never)
     floatPage = parseFloat(d.body.dataset.pagesFloatPage) || 70,
-    // top/bottom page margin
     tb = ['top', 'bottom'].map(i =>
       num(style(d.documentElement).getPropertyValue(`--paper-margin-${i}`))
-    ),
-    // the template of a page
+    ),  // top/bottom page margin
     tpl = make('div', 'pagesjs-page'),
     boxes = [],  // all pages
-    wrapped = new WeakSet(),  // elements whose runs of inline nodes have been wrapped
-    guessed = new WeakSet(),  // pages whose number of physical pages is an estimate (see calcPages())
-    floats = [],  // the floats that wait for a page (see putFloats())
-    notes = new Map(),  // the items of each note (footnote or citation), by its marker (see detachNotes())
-    probeY = new WeakMap(),  // the bottoms of the blocks on the probe page (see fitting())
-    hold = make('div');  // a hidden container for elements that need styles
+    wrapped = new WeakSet(),  // elements whose inline runs are wrapped (wrapRuns())
+    guessed = new WeakSet(),  // pages whose number of physical pages is estimated (calcPages())
+    floats = [],  // floats waiting for a page (putFloats())
+    notes = new Map(),  // items of each note (footnote or citation), by its marker (detachNotes())
+    probeY = new WeakMap(),  // bottoms of the blocks on the probe page (fitting())
+    hold = make('div');  // hidden container for elements that need styles
   tpl.innerHTML = `<div class="pagesjs-header"></div>
 <div class="pagesjs-body"></div>
 <div class="pagesjs-footer"></div>`;
@@ -86,24 +70,25 @@
 
   let
     box, box_body,  // the current page and its body
-    box_ctx,  // where the content goes in the body (see ctx())
+    box_ctx,  // where the content goes in the body (ctx())
     wrap = [],  // the ancestors of the content root (outermost first)
     H, B,  // the height of the current page and of its body
-    portrait, landscape,  // [H, B] of a normal page and of a landscape page (see takePage())
+    portrait, landscape,  // [H, B] of a normal page and of a landscape page (takePage())
     H_min, H_line,  // the height of a single-line paragraph (with margins) and of a line
-    used,  // the height of the content of the page when it was last measured (see overflows())
-    whole,  // the float that takes the page that is being filled (see takePage())
+    used,  // the content height of the page when it was last measured (overflows())
+    whole,  // the float that takes the page being filled (takePage())
     main_title,  // the title of the document
-    probed,  // the content that is on the probe page (see probe())
-    pending,  // the rest of the pagination, which is waiting for the probe
-    running,  // the generator that does the rest of the pagination (see advance())
+    probed,  // the content on the probe page (probe())
+    pending,  // the rest of the pagination, waiting for the probe
+    running,  // the generator that does the rest of the pagination (advance())
     progress, n_done = 0,  // the progress indicator and the number of finished pages
     finished,  // is the pagination finished?
     SP = new URLSearchParams(location.search);
 
-  // Diagnosis: pages that overflow, elements with scrollbars, and unbreakable elements that
-  // stick out of the page (listed in a panel, see addTools())
+  // Diagnosis (listed in a panel, see addTools()): pages that overflow, elements with
+  // scrollbars, and unbreakable elements that stick out of the page
   const hit = 'pagesjs-hit', px = n => Math.round(n);
+  function unhit() { $('.' + hit)?.classList.remove(hit); }
   function problems() {
     const out = [], sc = /auto|scroll/, scrolls = [];
     boxes.forEach((b, i) => {
@@ -111,7 +96,8 @@
       has(b, 'page-multiple') && out.push([b, `${p} overflows`]);
       $$('*', body).forEach(el => {
         const cs = style(el), name = el.tagName.toLowerCase() + (el.className && '.' + el.classList[0]);
-        if (sc.test(cs.overflowX) || sc.test(cs.overflowY)) {  // (read sizes only of these: each is a layout read)
+        // (read sizes only of scrolling elements: each read is a layout)
+        if (sc.test(cs.overflowX) || sc.test(cs.overflowY)) {
           const {clientWidth: cw, clientHeight: ch, scrollWidth: sw, scrollHeight: sh} = el;
           if (sc.test(cs.overflowX) && sw > cw + 1 || sc.test(cs.overflowY) && sh > ch + 1)
             return scrolls.push(el), out.push([el, `${p} ${name} scrolls: ${sw}x${sh} in ${cw}x${ch}`]);
@@ -131,13 +117,12 @@
     el && !$('.pagesjs-body', el) && el.insertAdjacentHTML('afterbegin', tpl.innerHTML);
     box = el || tpl.cloneNode(true); box_body = box.children[1]; box_ctx = null;
     portrait && ([H, B] = portrait);
-    boxes.includes(box) || boxes.push(box);  // store new pages in boxes
+    boxes.includes(box) || boxes.push(box);
     return box;
   }
-  // The margin at the end of the content of a page is truncated at the end of the
-  // page (like in CSS fragmentation), so it should not count when the content is
-  // tested if it fits the page. It is the margin of the last element and its last
-  // descendants, until one with padding/border at the bottom.
+  // The margin at the end of the content of a page is truncated at the page end (as in
+  // CSS fragmentation), so it does not count in the fit test: the margin of the last
+  // element and its last descendants, up to one with padding/border at the bottom.
   function trailingMargin(body = box_body) {
     let m = 0;
     for (let e = lastEl(body); e; e = lastEl(e)) {
@@ -149,15 +134,13 @@
   }
   // the height of the page without the margin at the end of its content
   function pageHeight() { syncNotes(); return crowded() ? Infinity : rect(box).height - trailingMargin(); }
-  // does the page overflow?
   function overflows() { syncNotes(); return (used = box.scrollHeight - trailingMargin()) > H || crowded(); }
-  // Nothing fits on the page of a float that takes it: is the page taken, and is there
-  // anything after the float?
+  // Does a float take the page, with something after it? Then nothing else fits.
   function taken() { return !!whole && box_body.contains(whole); }
   function crowded() { return taken() && hasAround(whole, 'next'); }
-  // The notes are not measured inline (where they are floats next to their references),
-  // but in a block after the page body, as in the end: put the notes of the references
-  // that are on the page there (and take the others off).
+  // Notes are measured in a block after the page body, as in the end, not inline (where
+  // they are floats next to their references): put the notes of the references on the
+  // page there, and take off the others.
   function syncNotes(b = box) {
     const body = b.children[1], ms = [...$$('.pagesjs-note', body)], seen = new Set();
     // a note cited more than once on the page is shown once (with its first reference)
@@ -173,16 +156,15 @@
     c.className = 'footnotes';
     if (items.some((e, i) => c.children[i] !== e) || nChild(c) !== items.length) c.replaceChildren(...items);
   }
-  // start the next page and finish current page
   function nextPage(el, callback) {
     const cur = box; cur.after(newPage(el)); callback && callback(); putFloats(); finish(cur);
   }
-  // compute page numbers and temporarily remove the box
+  // compute page numbers and remove the box from the DOM
   function finish(box) {
     syncNotes(box);
     const h = box.scrollHeight, wide = has(box, 'page-wide'), Hb = (wide ? landscape : portrait)[0];
-    // tolerate a few pixels (and the margin of the last element) hanging over the page bottom
-    // (a landscape page is not continued; what sticks out of it is reported, see problems())
+    // tolerate a few pixels (and a last margin) hanging over the bottom; a landscape page is
+    // not continued (what sticks out of it is reported, see problems())
     if (!wide && h - trailingMargin(box.children[1]) > Hb && !box.dataset.pagesOffset) {
       const n = calcPages(box, h, Hb);
       if (n > 1) box.dataset.pagesOffset = n, guessed.add(box);
@@ -190,11 +172,10 @@
     box.remove();
     progress && (progress.textContent = `Paginating: ${++n_done} pages done`);
   }
-  // The height of a page in fill mode is its natural height, which includes spaces that
-  // are not needed in the end (e.g., the margins of the last element), so a page that is a
-  // few pixels too tall may be fine with its fixed height. Check the pages in the end:
-  // if the content doesn't reach the notes/footer after the body and nothing hangs over
-  // the paper, the estimated number of pages is wrong.
+  // A page in fill mode has its natural height, which includes space not needed in the end
+  // (e.g., the last margin), so a page a few pixels too tall may be fine at its fixed height.
+  // If the content does not reach the notes/footer and nothing hangs over the paper, the
+  // estimated number of pages is wrong.
   function checkOffsets() {
     boxes.forEach(box => {
       if (!guessed.has(box)) return;
@@ -204,15 +185,13 @@
         box.scrollHeight <= box.clientHeight + 1) delete box.dataset.pagesOffset;
     });
   }
-  // calculate how many new pages we need for overflowed content (this is just
-  // an estimate; if not accurate, use <div class="pagesjs-page" data-pages-offset="N">
-  // to provide a number manually)
+  // number of pages for the overflow (an estimate; set data-pages-offset="N" to override)
   function calcPages(box, h, H) {
     let n = +box.dataset.pagesOffset;
     if (n) return n;
     n = Math.ceil(h/H);
     if (n <= 1) return n;
-    // consider top/bottom page margin and table headers (which may be repeated on each page)
+    // consider the top/bottom margins and table headers (repeated on each page)
     const m = tb.concat([...$$('thead', box)].map(el => +el.offsetHeight)).reduce((m1, m2) => m1 + m2);
     if (!m) return n;
     function nPages() { return Math.ceil((h + (n - 1) * m)/H); }
@@ -229,14 +208,13 @@
     for (; el && el !== d.body; el = el.parentNode) a.unshift(el);
     return a;
   }
-  // The container for the content on the current page. It is a chain of empty
-  // clones of the content root and its ancestors (i.e., the original context), so
-  // CSS selectors that depend on them (e.g., `main h2`) still apply on pages.
   // an empty clone of el that keeps its context for CSS selectors but not its box
   function wrapper(el) {
-    const c = el.cloneNode(); addCls(c, 'pagesjs-wrap'); rmCls(c, fr_cls, fr_1, fr_2);
+    const c = el.cloneNode(); addCls(c, 'pagesjs-wrap'); unfrag(c);
     return c;
   }
+  // The container for content on the current page: clones of the content root and its
+  // ancestors, so selectors like `main h2` still apply on pages.
   function ctx() {
     if (!wrap.length) return box_body;
     if (!box_ctx || !box_body.contains(box_ctx)) {
@@ -246,7 +224,7 @@
   }
   function removeBlank(el) {
     if (!el || el.tagName === 'BODY') return false;
-    // for <p>, don't treat it as empty unless its HTML is empty
+    // (a <p> is empty only if its HTML is)
     const v = !(el.tagName === 'P' ? el.innerHTML : el.innerText).trim();
     v && el.remove();
     return v;
@@ -255,38 +233,34 @@
   // --- Putting elements on pages -------------------------------------
 
   function* fill(el, more = true) {
-    // if the element is already a page, just use it as the box
+    // a page element is used as the box
     if (has(el, 'pagesjs-page')) {
       nextPage(el, () => nChild(el) > 3 && (
-        // if current element is not empty, fill its content into the box
+        // (its content goes into the box; TODO: fragment it if it's too long)
         box_body.append(...kids(el).slice(3)),
-        // TODO: should we fragment this page if it's too long?
-        nextPage()  // create a new empty page
+        nextPage()
       ));
     } else {
-      // in a book, a chapter (a container of <h1>) starts on a new page
       if (book && box.innerText !== '' && $('h1', el)) flush(), nextPage();
       if (el.innerText.trim() && (taken() || (syncNotes(), H - box.scrollHeight < H_min))) nextPage();
       yield* place(el, more);
     }
   }
 
-  // append el to the page, and if it overflows, put as much of it as possible on
-  // the page and the rest on the next page(s)
+  // append el to the page; if it overflows, put as much as possible on the page and
+  // the rest on the next page(s)
   function* place(el, more) {
     for (;;) {
-      const c = ctx();
+      const c = ctx(), big = isBigBlock(el);
       endFrag(el);
-      if (isBigBlock(el)) {
-        // don't attach a big element to the page, since it takes time to style
-        // and lay out all its content just to find out that it does not fit
-        el = split(el, c, 'block', more);
-      } else {
+      // a big block is not attached to the page: styling and laying out all its content
+      // just to find out that it does not fit takes time
+      if (!big) {
         c.append(el);
         if (isFloat(el) && !stays(el, c)) return;
         if (!overflows()) return;
-        el = split(el, c, undefined, more);
       }
+      el = split(el, c, big ? 'block' : undefined, more);
       if (!el) return;
       nextPage();
       yield;  // (a chance to paint the progress)
@@ -294,11 +268,11 @@
     }
   }
 
-  // Put as much of el (which has just overflowed the page in container) as
-  // possible into container, and return the rest (detached) if any. Unless el is
-  // the first thing on the page, it will be left out entirely if it can't be broken.
+  // Put as much of el (which just overflowed container) as possible into container, and
+  // return the rest (detached), if any. Unless el is first on the page, it is left out
+  // entirely if it can't be broken.
   function split(el, container, kind, more) {
-    // (for a block, prev is determined after it is cut, to avoid laying it out)
+    // (a block's prev is determined after it is cut, to avoid laying it out)
     const k = kind || kindOf(el), prev = k === 'block' ? undefined : hasPrev(el),
       first = !has(el, fr_cls), r = k && splitters[k](el, container, prev, first, more);
     if (!r) return prev && (el.remove(), isFloat(el) ? defer(el, container) : el);
@@ -307,55 +281,49 @@
     if (rest) {
       addCls(rest, fr_cls); rmCls(rest, fr_1, fr_2);
     } else if (has(head, fr_1)) {
-      rmCls(head, fr_cls, fr_1, fr_2);  // it's not really split
+      unfrag(head);  // (not really split)
     } else {
       addCls(head, fr_2);  // the last piece
     }
     return rest;
   }
+  function unfrag(el) { rmCls(el, fr_cls, fr_1, fr_2); }
 
-  // Floats are captioned figures and elements with the class "pagesjs-float". They are never
-  // broken: one that does not fit where it is waits for the next page, and the content
-  // after it fills the page, as in LaTeX. They keep their order (a float waits if an
-  // earlier one does), and wait at most until the end of the chapter (book) or the root.
+  // Floats: captioned figures and .pagesjs-float elements. They keep their order (one waits
+  // if an earlier one does), and wait at most until the end of the chapter (book) or the root.
   function isFloat(el) {
     return el.matches('.pagesjs-float, .pagesjs-wide') || el.matches('figure, .figure') && !!$('figcaption, .caption', el);
   }
-  // does a float take a whole page?
   function isTall(f) { return has(f, 'pagesjs-wide') || rect(f).height > B * floatPage / 100; }
-  // let a float take the page: overflows() keeps everything else off the page, and
-  // the class makes the body center the float vertically (see pages.css). A wide one
-  // gets a landscape page (the sizes of the page are those of the paper turned).
+  // Let a float take the page: overflows() keeps everything else off it, and the class
+  // centers the float (pages.css). A wide float gets a landscape page.
   function takePage(f) {
     whole = f; addCls(box, 'page-float');
     has(f, 'pagesjs-wide') && (addCls(box, 'page-wide'), [H, B] = landscape);
   }
-  // Does a float (attached to container) stay where it is? Not if floats wait before it,
-  // or if it takes a whole page and there is content before it: it goes to a page of its own.
+  // Does a float (attached to container) stay? Not if floats wait before it, or if it takes
+  // a page and there is content before it: then it goes to a page of its own.
   function stays(f, container) {
     const tall = isTall(f);
     if (floats.length || tall && hasPrev(f)) return defer(f, container, tall), false;
     tall && takePage(f);
     return true;
   }
-  // does the next page belong to a float that takes a page? (then the rest of what is
-  // broken on this page is not on the next page, and should not be a lone line)
-  function tallWaiting() { return floats[0]?.[2]; }
-  // (a float keeps the wrappers of the pieces of the elements that it was in, e.g., a
-  // chapter, so the CSS selectors that depend on them still work on the next page)
+  // (the waiting float keeps the wrappers of the elements it was in, e.g., a chapter, so
+  // selectors that depend on them still work on the next page)
   function defer(el, container, tall) {
     const chain = [];
     for (let p = container, top = ctx(); p && p !== top; p = p.parentNode) chain.unshift(wrapper(p));
     el.remove(); floats.push([el, chain, tall]);
   }
-  // put the waiting floats at the top of the new page, in order, as many as fit (the
-  // first one stays even if it is too big, since it can't wait any longer)
+  // Put the waiting floats at the top of the new page, in order, as many as fit. The first
+  // stays even if too big, since it can't wait any longer.
   function putFloats() {
     while (floats.length) {
       const [f, chain] = floats[0], out = chain[0] || f;
       chain.reduce((p, c) => p.appendChild(c), ctx()).append(f);
       // the first float on the page stays (centered if it takes the page); the others
-      // only if they are short and fit
+      // only if short and fitting
       if (hasPrev(out)) {
         if (isTall(f) || overflows()) return out.remove();
       } else isTall(f) && takePage(f);
@@ -367,13 +335,11 @@
     while (floats.length) nextPage();
   }
 
-  // is an element a block that is too big to be put on a page as a whole?
   function isBigBlock(el) {
     return !isFloat(el) && !['TABLE', 'PRE'].includes(el.tagName) && el.getElementsByTagName('*').length > 300;
   }
   function blank(el) { return !firstEl(el) && !el.textContent.trim(); }
-  // is there anything before ('previous') or after ('next') el on the page (if there is
-  // something before it, el may go to the next page)?
+  // is there anything before ('previous') or after ('next') el on the page?
   function hasAround(el, side) {
     const k = side + 'ElementSibling';
     for (; el && el !== box_body; el = el.parentNode)
@@ -385,19 +351,18 @@
   function inFlow(cs) {
     return cs.float === 'none' && !['absolute', 'fixed'].includes(cs.position);
   }
-  // text, inline elements, and out-of-flow elements go with the text around them
+  // text, inline and out-of-flow nodes go with the text around them
   function isInline(n) {
     if (n.nodeType !== 1) return true;
     const cs = style(n), v = cs.display;
     return v.startsWith('inline') || v === 'none' || v === 'contents' || !inFlow(cs);
   }
-  // is an element a part of the text (inline, and not a float, etc.)?
   function inTextFlow(el) {
     const cs = style(el);
     return (cs.display.startsWith('inline') || cs.display === 'contents') && inFlow(cs);
   }
-  // lines of <pre><code>; tags open at the end of a line (e.g., a multi-line
-  // comment) are closed there and reopened on the next line, so each line is balanced
+  // lines of <pre><code>; a tag open at a line end (e.g., a multi-line comment) is closed
+  // there and reopened on the next line, so each line is balanced
   function codeLines(pre) {
     const open = [];
     return firstEl(pre).innerHTML.replace(/\n$/, '').split('\n').map(line => {
@@ -408,8 +373,8 @@
       return start + line + open.map(t => `</${t[1]}>`).reverse().join('');
     });
   }
-  // how can the element be broken: by 'block' (its child blocks), 'inline' (text
-  // lines), 'table' (rows), 'code' (lines), or not at all (undefined)?
+  // how the element can be broken: 'block' (child blocks), 'inline' (text lines), 'table'
+  // (rows), 'code' (lines), or not at all (undefined)?
   function kindOf(el) {
     const cs = style(el), t = el.tagName;
     if (/avoid/.test(cs.breakInside) || el.matches(atomic)) return;
@@ -417,7 +382,7 @@
     if (!['block', 'list-item', 'flow-root'].includes(cs.display) || !inFlow(cs)) return;
     if (t === 'PRE') {
       if (firstEl(el)?.tagName === 'CODE' && codeLines(el).length > 1) return 'code';
-      // wrapped long lines: move to the next page if it fits there, otherwise break by lines
+      // wrapped long lines: move to the next page if it fits there, else break by lines
       if (el.offsetHeight <= B) return;
     }
     return kids(el).some(c => !isInline(c)) ? 'block' : 'inline';
@@ -425,37 +390,36 @@
   function mark(el, first) {
     addCls(el, fr_cls); rmCls(el, fr_2); first && addCls(el, fr_1);
   }
-  // pieces of a fragmented element that are put on a page as a whole are the last
-  // pieces; mark them (and their fragmented descendants) before measuring, since
-  // the size of the last piece is different (see pages.css); if it turns out to be
-  // too big and is split, the mark is removed
+  // The pieces that are put on a page as a whole are the last pieces. Mark them (and their
+  // fragmented descendants) before measuring, since the last piece is styled differently
+  // (pages.css). If it is split after all, the mark is removed.
   function endFrag(el) {
     if (el.nodeType === 1) [el, ...$$('.' + fr_cls, el)].forEach(e => has(e, fr_cls) && addCls(e, fr_2));
   }
-  // shallow clone el (wrapper only) as the first piece of el in container
+  // shallow clone of el (as its first piece) in container
   function cut(el, container, first) {
     const head = el.cloneNode();
     el.remove(); container.append(head); mark(head, first);
     return head;
   }
-  // wrap each run of inline nodes in a block (like an anonymous block box in CSS)
-  // so mixed content (e.g., <li>text<ul>...</ul></li>) can be broken as paragraphs
+  // wrap each run of inline nodes in a block (like an anonymous block box in CSS), so mixed
+  // content (e.g., <li>text<ul>...</ul></li>) can be broken like paragraphs
   function wrapRuns(el) {
     // (a run is made of inline nodes already; wrapping it again would nest runs endlessly)
     if (wrapped.has(el) || has(el, 'pagesjs-run')) return;
     wrapped.add(el);
-    // computed styles are available only in the DOM (but not necessarily on a page)
+    // computed styles are only available in the DOM
     el.isConnected || hold.append(el);
     let run = [];
-    function flush() {
+    function endRun() {
       if (run.some(n => n.nodeType === 1 || n.nodeType === 3 && n.nodeValue.trim())) {
         const s = make('span', 'pagesjs-run');
         run[0].before(s); s.append(...run);
       }
       run = [];
     }
-    for (const n of [...el.childNodes]) isInline(n) ? run.push(n) : flush();
-    flush();
+    for (const n of [...el.childNodes]) isInline(n) ? run.push(n) : endRun();
+    endRun();
     el.parentNode === hold && el.remove();
   }
 
@@ -463,12 +427,10 @@
 
   // --- Breaking elements ---------------------------------------------
 
-  // Measuring the page after each child is slow (a forced layout), so put several children
-  // on it at once when they surely fit: the nodes (in order) that end a line above the page
-  // bottom, going by their distances on the probe page from the last child on the page. If
-  // they turn out not to fit, they are taken back, so the estimate affects the speed but not
-  // the result. The children of the content root need the room that fill() asks for (H_min,
-  // and as much again for the margin after the previous child).
+  // Measuring after each child is slow (a forced layout), so put several children on the page
+  // at once when they surely fit, by their probe positions from the last child on the page.
+  // If they don't fit, they are taken back, so the estimate affects speed, not the result.
+  // Children of the content root need the room fill() asks for (H_min, plus the margin).
   function fitting(head, nodes, root) {
     const prev = lastEl(head), y0 = prev && !has(prev, fr_cls) ? probeY.get(prev) : undefined, run = [];
     if (y0 === undefined || !used) return run;
@@ -486,8 +448,8 @@
     return run.slice(0, n);
   }
   function* siblings(n) { for (; n; n = n.nextSibling) yield n; }
-  // move children to a clone of el one by one until the page is full, and split
-  // the child that overflows recursively, so elements can be broken at any depth
+  // move children to a clone of el one by one until the page is full; the child that
+  // overflows is split recursively, so elements can be broken at any depth
   function splitBlock(el, container, prev, first, more) {
     wrapRuns(el);
     const head = cut(el, container, first);
@@ -517,34 +479,33 @@
     return [head, blank(el) ? null : el];
   }
 
-  // a legend or a caption (which is too tall for moveShortHead() when it's in a framed
-  // block or above a table) should not be the last child of a piece that is continued,
-  // so move it (and those before it) to the rest (el)
+  // A legend or caption should not end a piece that is continued (it is too tall for
+  // moveShortHead() in a framed block or above a table): move it, and those before it, to el.
   function moveTrailingHeadings(head, el, prev) {
     for (let h; (h = lastEl(head))?.matches('legend, .caption') && (nChild(head) > 1 || prev);)
       el.prepend(h);
   }
-  // if only about one line (e.g., a legend or the first list item) is left on the
-  // page, and no child was split, move it to the next page with the rest (el)
+  // If about one line (e.g., a legend or the first list item) is left and no child was split,
+  // move it to the next page with the rest
   function moveShortHead(head, el) {
     if (!blank(el) && rect(head).height < 1.5 * H_line) {
       rejoin(lastEl(head), firstEl(el));
       el.prepend(...head.childNodes);
     }
   }
-  // put back the piece a (at the end of the head) into its rest b (at the start of el),
-  // so they are one element again
+  // put the piece a (at the end of head) back into its rest b (at the start of el), so they
+  // are one element again
   function rejoin(a, b) {
     if (!a || !b || !has(a, fr_cls) || !has(b, fr_cls) || a.tagName !== b.tagName) return;
     rejoin(lastEl(a), firstEl(b));
     b.prepend(...a.childNodes);
-    // (b is not marked as the last piece yet; if a was the first piece, they are the original element)
+    // (b is not marked as the last piece; if a was the first piece, they are the original element)
     rmCls(b, ...has(a, fr_1) ? [fr_cls, fr_1, fr_2] : [fr_1]);
     a.remove();
   }
-  // If all children fit, head is the last piece, which has bottom margin/border
-  // that were hidden when it was measured as a non-last piece; if it is too
-  // big now, break the last child (or push it out entirely if it can't be broken).
+  // If all children fit, head is the last piece, whose bottom margin/border was hidden when it
+  // was measured as a non-last piece. If it is too big now, break its last child (or push
+  // that out entirely if it can't be broken).
   function fitLastPiece(head, el, prev) {
     addCls(head, fr_2);
     while (overflows() && lastEl(head) && (nChild(head) > 1 || prev)) {
@@ -555,7 +516,7 @@
     }
     blank(el) || rmCls(head, fr_2);
   }
-  // update the start number of the rest of <ol> (an item split in half counts once)
+  // update the start number of the rest of <ol> (a split item counts once)
   function fixOlStart(head, el) {
     el.start += nChild(head) - (has(firstEl(el), fr_cls) ? 1 : 0);
   }
@@ -570,49 +531,47 @@
       loc.i < 0 ? r.setStartBefore(loc.node) : r.setStart(loc.node, loc.i);
       r.setEnd(el, el.childNodes.length);
       rest.prepend(r.extractContents());
-      const last = el.lastChild;  // strip trailing empty tags left by range extraction
+      const last = el.lastChild;  // strip trailing empty tags left by the extraction
       last?.innerHTML === '' && last.remove();
     }
     mark(el, first);
-    // remove lines from the end of paragraph (but keep the first line if el is
-    // the first thing on the page)
+    // remove lines from the end (keep the first line if el is first on the page)
     while (k > (prev ? 0 : 1)) {
       cutLine();
       if (k > 0 && !overflows()) break;
     }
-    // avoid a widow only when it is the very last line of the content, i.e.,
-    // alone on a page (an orphan, or a widow followed by more content, is fine); or when
-    // it would come after a page of a float (the paragraph moves entirely if it has 2 lines)
-    if (n - k === 1 && (k > 1 && !more || (k > 1 || prev) && tallWaiting())) cutLine();
+    // avoid a widow only when it is the very last line of the content (alone on a page), or
+    // when a tall float waits (then the paragraph moves entirely if it has 2 lines)
+    if (n - k === 1 && (k > 1 && !more || (k > 1 || prev) && floats[0]?.[2])) cutLine();
     return [el, rest];
   }
 
-  // find the break position of each line (exclude block elements like footnotes)
+  // find the break position of each line (blocks like footnotes are excluded)
   function lineStarts(el) {
     const r = range(), ends = [{node: el, i: 0}];
     const walker = d.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     let node, prev;
-    // if the previous rect is at top-right of current rect, assume a line ends
-    // before the current one (TODO: how about RTL languages?)
-    function newLine(rect) {
-      return prev && prev.bottom <= rect.top && prev.right > rect.left;
+    // if the previous rect is at the top-right of the current one, a line ends before it
+    // (TODO: how about RTL languages?)
+    function newLine(rc) {
+      return prev && prev.bottom <= rc.top && prev.right > rc.left;
     }
     while (node = walker.nextNode()) {
       const t = node.tagName;
       if (t) {
         if (t === 'MJX-CONTAINER' || (t === 'SPAN' && $('.katex', node)) || !inTextFlow(node)) {
-          node = walker.nextSibling();  // skip blocks and floats (footnotes) and math
+          node = walker.nextSibling();  // skip blocks, floats (footnotes), and math
           if (!node) break;
         }
-        if (node.firstChild) continue;  // for element nodes, traverse to bottom
+        if (node.firstChild) continue;  // element nodes: traverse to the bottom
       }
       if (node.tagName) {
         const rc = rect(node);
         newLine(rc) && ends.push({node, i: -1});
         prev = rc;
       } else if (node.textContent.trim()) {
-        // a text node has one rect per line, and a new line starts at the first
-        // character that makes the range of the text have one more rect
+        // a text node has one rect per line; a new line starts at the first character
+        // that adds one rect to the range
         r.selectNodeContents(node);
         const rects = r.getClientRects();
         if (!rects.length) continue;
@@ -623,7 +582,7 @@
     }
     return ends;
   }
-  // the offset of the first character on the k-th line of a text node (via bisection)
+  // the offset of the first character on the k-th line of a text node (by bisection)
   function lineOffset(node, k, r) {
     let lo = 0, hi = node.length;
     while (lo < hi) {
@@ -633,9 +592,9 @@
     }
     return lo - 1;  // (the range ends after the first character of the line)
   }
-  // A copy of a repeated table header/footer. The notes in it appear once, on the first
-  // page: the first copy takes the markers of the original, so later copies have none.
-  // undo gets the functions that give the markers back (if the copy is discarded).
+  // A copy of a repeated table header/footer. Its notes appear once, on the first page: the
+  // first copy takes the markers of the original, so later copies have none. undo puts the
+  // markers back (if the copy is discarded).
   function cloneHold(el, undo) {
     const c = el.cloneNode(true), ms = $$('.pagesjs-note', c);
     $$('.pagesjs-note', el).forEach((m, i) => {
@@ -649,19 +608,19 @@
   function splitTable(el, container, prev, first) {
     const head = cut(el, container, first), tb = el.tBodies[0], tb2 = tb.cloneNode(),
       undo = [], rows = [...tb.rows], n = rows.length, min = prev ? 0 : 1;
-    // the caption (which is not broken) goes with the first rows, unless it is below the table
+    // the caption (not broken) goes with the first rows, unless it is below the table
     const cap = el.caption && style(el.caption).captionSide !== 'bottom' ? el.caption : null;
     function clear() { cap && el.prepend(cap); head.innerHTML = ''; undo.reverse().forEach(f => f()); }
     cap && head.append(cap);
-    // copy table header and footer (the header goes first, as in the original)
+    // copy the table header and footer (the header goes first, as in the original)
     [el.tHead, tb2, el.tFoot].forEach(t => t && head.append(t === tb2 ? t : cloneHold(t, undo)));
-    // Put all rows in the page and lay them out once. The rows whose bottoms are
-    // below (the bottom of the last row - the overflow) do not fit; put them back.
+    // Put all rows on the page and lay them out once. The rows whose bottoms are below
+    // (the bottom of the last row - the overflow) do not fit: put them back.
     tb2.append(...rows);
     const over = pageHeight() - H - .5;  // (see fitLines())
     if (over >= 0) {
       const limit = rect(rows[n - 1]).bottom - over;
-      let lo = 0, hi = n;  // the first row that is below the limit (by bisection)
+      let lo = 0, hi = n;  // the first row below the limit (by bisection)
       while (lo < hi) {
         const mid = (lo + hi) >> 1;
         rect(rows[mid]).bottom <= limit ? lo = mid + 1 : hi = mid;
@@ -670,7 +629,7 @@
       tb.prepend(...rows.slice(k));
       while (k > min && pageHeight() > H + .5) tb.prepend(rows[--k]);  // make sure they fit
     }
-    // clear the clone if current page can't fit even one row
+    // clear the clone if the current page can't fit even one row
     tb2.rows.length || clear();
     // avoid a single row on either page
     const m = tb2.rows.length;
@@ -680,11 +639,11 @@
     }
     return [head, tb.rows.length ? el : null];
   }
-  // split lines in <code> and move as many lines into the clone as possible
+  // split lines in <code>, moving as many lines into the clone as possible
   function splitCode(el, container, prev, first) {
     const code = firstEl(el), lines = codeLines(el);
-    // other children go to the first piece, except those after <code> in the normal
-    // flow (e.g., a link to the output), which go to the last piece
+    // other children go to the first piece, except those after <code> in the normal flow
+    // (e.g., a link to the output), which go to the last piece
     const ch = kids(el), tail = ch.filter((c, j) => j > ch.indexOf(code) && inFlow(style(c)));
     const head = cut(el, container, first), code2 = code.cloneNode();
     head.append(code2, ...ch.filter(c => c !== code && !tail.includes(c)));
@@ -692,22 +651,20 @@
     // avoid a single line on either page
     if (i > 1 && lines.length - i === 1) i--;
     if (i === 1 && prev) i = 0;
-    // i == 0 means not enough space to split code on current page
+    // i == 0: not enough space on the current page
     if (i) code2.innerHTML = lines.slice(0, i).join('\n'); else head.innerHTML = '';
     code.innerHTML = lines.slice(i).join('\n');
     if (code.innerHTML.trim()) return [head, el];
     i && head.append(...tail);
     return [head, null];
   }
-  // Figure out how many lines can fit the box. Instead of guessing and testing
-  // different numbers of lines, put all lines in <code> and lay them out once, and
-  // read the positions of the line breaks, which tells how many lines are below
-  // the bottom of the page. (Lines are balanced, so their line breaks are in the
-  // text nodes that are children of <code>.)
+  // How many lines fit the box? Put all lines in <code> and lay them out once, then read the
+  // positions of the line breaks (lines are balanced, so the breaks are in the text nodes
+  // that are children of <code>), instead of guessing and testing counts.
   function fitLines(code, lines, prev) {
     const n = lines.length, min = prev ? 0 : 1;
     code.innerHTML = lines.join('\n');
-    // (the page fits if its height is rounded to H or less, i.e., it is < H + .5)
+    // (the page fits if its height rounds to H or less, i.e., it is < H + .5)
     const over = pageHeight() - H - .5;
     if (over < 0) return n;
     const r = range(), bottoms = [];  // the bottom of each line
@@ -725,11 +682,10 @@
     // the lines whose bottoms are not below (the bottom of the last line - over)
     let i = 0;
     while (i < n && bottoms[i] <= last - over) i++;
-    // blank lines at the end don't take space, so don't leave them to the next page
+    // blank lines at the end take no space, so don't leave them to the next page
     while (i && i < n && !lines[i].trim()) i++;
     code.innerHTML = lines.slice(0, Math.max(i, min)).join('\n');
-    // make sure that the lines fit (e.g., when the line break is not at the bottom
-    // of a line)
+    // make sure the lines fit (the line break may not be at the bottom of a line)
     while (i > min && pageHeight() > H + .5) {
       code.innerHTML = lines.slice(0, --i).join('\n');
     }
@@ -738,9 +694,9 @@
 
   // --- Letting content settle before measuring it --------------------
 
-  // Let content that reacts to the width of its container (e.g., diagrams that use
-  // a ResizeObserver) settle at the page width before measuring anything: put all
-  // content on a probe page and wait for a few frames.
+  // Let content that reacts to its container width (e.g., diagrams with a ResizeObserver)
+  // settle at the page width before measuring: put all content on a probe page, and wait
+  // for a few frames.
   function probe(roots, els) {
     addCls(box, 'pagesjs-settle');
     roots.forEach((el, i) => {
@@ -771,20 +727,20 @@
 
   // --- Page numbers and titles ---------------------------------------
 
-  // use data-short-title of a header if exists, and fall back to inner text
+  // data-short-title of a header if it exists, else its text
   function shortTitle(h) {
     return h && (h.dataset.shortTitle || h.innerText);
   }
   const ps = (book ? 'h1' : 'h2') + ':not(.pagesjs-front *)';  // page title selector
-  // add page number, title, etc. to data-* attributes of page elements
+  // add page number, title, etc. to data-* attributes of the page elements
   function numberPages() {
     let page_title, i = 0;
     const u = new URL(location.href);  // page URL without ?paged=1, shown on the last page
     u.searchParams.delete('paged');
     boxes.forEach(box => {
       if (book) {
-        if ($('.pagesjs-front', box)) return;  // skip book frontmatter page
-        $(ps, box) && (page_title = '');  // empty title for first page of chapter
+        if ($('.pagesjs-front', box)) return;  // skip the frontmatter page
+        $(ps, box) && (page_title = '');  // empty title for the first page of a chapter
       }
       const N = +box.dataset.pagesOffset || 1;
       if (N > 1) addCls(box, 'page-multiple');
@@ -797,12 +753,12 @@
       [box.children[0], lastEl(box)].forEach(el => {
         for (const key in info) info[key] && (el.dataset[key] = info[key]);
       });
-      // find page title for next page
+      // the page title for the next page
       page_title = shortTitle([...$$(ps, box)].pop()) || page_title;
     });
   }
 
-  // add page numbers to TOC with data-* attributes
+  // page numbers of the TOC entries, in data-page-number
   function numberToc() {
     $$('#TOC a[href^="#"]').forEach(a => {
       const p = d.getElementById(a.getAttribute('href').slice(1))?.closest('.pagesjs-page');
@@ -820,8 +776,8 @@
   }
   // opt out with <body data-pages-toggle="false"> (e.g., if the page has its own print button)
   function noToggle() { return d.body.dataset.pagesToggle === 'false'; }
-  // The button of the unpaginated page. The paged view is a new history entry, so the
-  // Back button of the browser returns to the unpaginated view (see the popstate handler).
+  // The button of the unpaginated page. The paged view is a new history entry, so Back
+  // returns to the unpaginated view (see the popstate handler).
   function pagedButton() {
     const btn = toolButton(printer, 'Paginate for printing');
     btn.className = 'pagesjs-print';
@@ -832,14 +788,13 @@
     return btn;
   }
 
-  // Buttons (top left) of the paginated view that open panels: a clone of the TOC,
-  // collapsed by default so that readers can get it at any time; and the problems (if
-  // any) to click through.
+  // Buttons (top left) of the paginated view that open panels: a clone of the TOC (collapsed,
+  // so readers can get it any time), and the problems, if any, to click through.
   function addTools() {
     const tools = make('div', 'pagesjs-tools'), toc = $('#TOC:not(.chapter-toc)'), bad = problems();
     const closeAll = () => {
       $$('.pagesjs-panel', tools).forEach(p => p.hidden = true);
-      $('.' + hit)?.classList.remove(hit);
+      unhit();
     };
     function add(text, title, content) {
       const btn = toolButton(text, title), panel = make('div', 'pagesjs-panel');
@@ -850,8 +805,8 @@
     }
     if (toc) {
       const nav = toc.cloneNode(true);
-      nav.removeAttribute('id'); nav.className = '';  // (not the TOC of the document any more, nor in the margin)
-      add('\u2630', 'Contents', nav);
+      nav.removeAttribute('id'); nav.className = '';  // (not the TOC of the document, nor in the margin)
+      add('☰', 'Contents', nav);
     }
     if (bad.length) {
       const ul = make('ul', 'pagesjs-problems');
@@ -859,13 +814,13 @@
         const li = make('li');
         li.textContent = msg;
         li.onclick = () => {
-          $('.' + hit)?.classList.remove(hit);
+          unhit();
           addCls(el, hit);
           el.scrollIntoView({block: 'center'});
         };
         ul.append(li);
       });
-      add('\u26a0', 'Problems (may be cut off or overflow)', ul);
+      add('⚠', 'Problems (may be cut off or overflow)', ul);
     }
     tools.children.length && d.body.append(tools);
     on('keydown', e => e.key === 'Escape' && closeAll());
@@ -878,30 +833,26 @@
     return [...el.childNodes].some(n => n.nodeType === 3 && n.nodeValue.trim());
   }
   function canBeRoot(el) { return !['PRE', 'TABLE'].includes(el.tagName) && !ownText(el); }
-  // The content root is specified via <body data-pages-root="selector">, or is
-  // <main> (or an element with role="main"), or the top-level <article> elements,
-  // or <body>. If <main> only has a child (e.g., <article>), the child is the root
-  // (and so on). Everything else (e.g., navigation bars) will be hidden.
+  // The content root: <body data-pages-root="selector">, else <main> (or role="main"), else
+  // the top-level <article>s, else <body>. If <main> only has a child (e.g., <article>), that
+  // child is the root (and so on). Everything else (e.g., navigation bars) is hidden.
   function findRoots() {
     const sel = d.body.dataset.pagesRoot, x = sel ? [...$$(sel)] : [];
     if (x.length) return x;
     let main = $('main, [role="main"]');
-    // if it only contains a wrapper (e.g., an <article>), use the wrapper instead
-    // (but not an element that is broken by its own, or has text, which would be lost)
+    // (not an element that is broken by its own, or has text, which would be lost)
     while (main && nChild(main) === 1 && !ownText(main) && canBeRoot(firstEl(main)))
       main = firstEl(main);
     if (main) return [main];
     const articles = [...$$('article')].filter(el => !el.parentNode.closest('article'));
     return articles.length ? articles : [d.body];
   }
-  // The frontmatter (title, author, etc.) of the document is <header> (a child of
-  // <body>) by default, or specified via <body data-pages-front="selector">; it is
-  // put on its own page in a book.
+  // The frontmatter (title, author, etc.) is <header> directly in <body>, or
+  // <body data-pages-front="selector">; in a book it gets a page of its own.
   function markFrontmatter() {
     $$(d.body.dataset.pagesFront || 'body > header').forEach(el => addCls(el, 'pagesjs-front'));
   }
-  // remove the classes of the TOC, footnotes, etc. that put them in the margin on
-  // screen but are not suitable for printing
+  // remove the classes that put the TOC, footnotes, etc. in the margin on screen (not for print)
   function removeSideClasses() {
     // a wide element has a page of its own, so it is not full width
     $$('.pagesjs-wide.fullwidth').forEach(el => rmCls(el, 'fullwidth'));
@@ -909,10 +860,10 @@
       rmCls(el, 'side', 'side-left', 'side-right');
     });
   }
-  // Replace the notes (footnotes and citations that sidenotes.js has put after their
-  // references) with markers, which go with the references when the text is broken.
+  // Replace the notes (footnotes and citations that sidenotes.js put after their references)
+  // with markers, which go with the references when the text is broken.
   function detachNotes() {
-    // (sidenotes.js puts them in a layer; bring each back after its reference)
+    // (sidenotes.js puts them in a layer: bring each back after its reference)
     $$('.footnotes[data-note-for]').forEach(el => d.getElementById(el.dataset.noteFor)?.after(el));
     $$('.sidenotes').forEach(el => el.remove());
     $$('.footnotes').forEach(el => {
@@ -923,30 +874,26 @@
       notes.set(m, kids(el)); el.replaceWith(m);
     });
   }
-  // test how much space a single-line paragraph needs
+  // the space a single-line paragraph needs
   function measureMinHeight() {
     const p = make('p'), H0 = box.scrollHeight;
     p.innerText = 'A'; box_body.append(p);
     H_min = box.scrollHeight - H0; H_line = rect(p).height; p.remove();
   }
-  // add dot leaders to TOC (page numbers will be added after the pages are ready)
+  // dot leaders for the TOC (page numbers are added when the pages are ready)
   function addTocLeaders() {
     $$('#TOC a[href^="#"]').forEach(a => {
-      const s = make('span', 'toc-text');  // move TOC item content into a span
+      const s = make('span', 'toc-text');  // the item content goes into a span
       a.append(s);
-      let c; while (c = s.previousSibling) {
-        // exclude section number spans
-        if (c.nodeType === 1 && has(c, 'section-number')) break; s.prepend(c);
-      }
+      // (the section number stays out of the span)
+      for (let c; (c = s.previousSibling) && !(c.nodeType === 1 && has(c, 'section-number'));) s.prepend(c);
       a.dataset.pageNumber = '000';  // placeholder for page numbers
     });
   }
-  // take the children of the roots out of the DOM (to speed up rendering single
-  // pages), and return them
+  // take the children of the roots out of the DOM (to speed up rendering single pages), and return them
   function detachContent(roots) {
     return roots.map(el => {
-      // move <style>/<link> into <head> so styles can be applied globally (not
-      // only when they are in the DOM), no matter how deeply they are nested
+      // move <style>/<link> into <head>, so styles apply globally, however deep they are
       $$('style, link[rel="stylesheet"]', el).forEach(el => d.head.append(el));
       const ch = kids(el).filter(el => ![box, hold, progress].includes(el) &&
         !['SCRIPT', 'NOSCRIPT', 'TEMPLATE'].includes(el.tagName));
@@ -957,7 +904,7 @@
   // iteratively add elements to pages
   function* fillPages(roots, els) {
     for (const el of $$('.pagesjs-front, .abstract, #TOC:not(.chapter-toc)')) {
-      // mark the first page if it has the frontmatter (for styling; :has() would be re-checked on every change)
+      // (class on the page, since :has() would be re-checked on every change)
       has(el, 'pagesjs-front') && box === boxes[0] && addCls(box, 'page-front');
       yield* fill(el);
       book && nextPage();
@@ -973,15 +920,15 @@
         run.length && (ctx().append(...run), overflows() ? run.forEach(e => e.remove()) : j += run.length);
       }
       flush();
-      // clean up container and self if empty
+      // clean up the container and self if empty
       removeBlank(el.parentNode); removeBlank(el);
     }
     finish(box);  // finish the last box
-    // unwrap the blocks created for runs of inline nodes
+    // unwrap the blocks made for runs of inline nodes
     $$('.pagesjs-run').forEach(el => el.replaceWith(...el.childNodes));
   }
-  // Run the rest of the pagination. If it is not sync, do it in slices of 0.5s,
-  // so the browser can show the progress in between (not too often, to save time).
+  // Run the rest of the pagination. Unless sync, do it in slices of 0.5s, so the browser can
+  // paint the progress in between.
   function advance(sync) {
     const t = performance.now();
     while (!running.next().done) {
@@ -993,7 +940,7 @@
   function paginate(sync) {
     // nobody sees the progress in a headless browser (and printing has to be sync)
     const quiet = sync || /Headless/.test(navigator.userAgent) || navigator.webdriver;
-    // we need to wait for all resources to be fully loaded before paginating
+    // all resources must be loaded before paginating
     if (d.readyState !== 'complete') return on('load', () => paginate(sync));
 
     const cls = d.body.classList;
@@ -1002,19 +949,19 @@
     const t0 = performance.now();
 
     markFrontmatter();
-    // (get the title while the document is visible, so innerText works)
+    // (the title is read while the document is visible, so innerText works)
     main_title = shortTitle($('h1.title, .pagesjs-front h1, .title, h1'));
 
     cls.add('pagesjs');
-    $$('.pagesjs-tools, .pagesjs-print').forEach(el => el.remove());  // (the toggle of the unpaginated page; addTools() makes new tools)
+    $$('.pagesjs-tools, .pagesjs-print').forEach(el => el.remove());  // (addTools() makes new tools)
     d.body.append(hold);
-    if (!quiet) {  // a simple indicator to tell users to wait
+    if (!quiet) {
       progress = make('div', 'pagesjs-progress');
       progress.textContent = 'Paginating...';
       d.body.append(progress);
     }
     d.body.insertAdjacentElement('afterbegin', newPage());
-    // (use window height if box height not specified)
+    // (the window height if the box height is not set)
     const size = () => { const h = (box.clientHeight || window.innerHeight) + tol; return [h, box_body.clientHeight || h]; };
     portrait = size();
     addCls(box, 'page-wide'); landscape = size(); rmCls(box, 'page-wide');
@@ -1041,9 +988,8 @@
         (over ? `; ${over} overflow their page` : ''));
       fire('pagesjs:after');
     }
-    // Pagination is async unless it has to be sync (beforeprint). If printing
-    // starts while it's pending (e.g., headless printing right after the page is
-    // loaded), finish it right away.
+    // Async unless it has to be sync (beforeprint). If printing starts while it is pending
+    // (e.g., headless printing right after load), finish it right away.
     pending = sync => { pending = null; unprobe(); running = run(); return advance(sync || quiet); };
     sync ? pending(true) : probe(roots, els).then(() => pending?.());
   }
@@ -1052,22 +998,20 @@
     else if (running) while (!running.next().done);  // finish the pagination in progress
     else paginate(true);
   });
-  // A script that controls the browser can request the pagination by dispatching
-  // pagesjs:paginate, and wait for pagesjs:after (which is also dispatched if the
-  // pagination was already finished)
+  // A script that controls the browser can dispatch pagesjs:paginate and wait for
+  // pagesjs:after (also dispatched if the pagination was already finished)
   on('pagesjs:paginate', () => {
     finished ? fire('pagesjs:after') : paginate();
   });
-  // use query param ?paged=1 to indicate pagination; an unpaginated page gets a
-  // button to start it (in the place reserved for it, or at the top left, not fixed)
+  // ?paged=1 requests the pagination; an unpaginated page gets a button to start it
   SP.get('paged') && paginate();
-  // going Back/Forward between the unpaginated view and the paged one (which are entries of
-  // the same document) needs a reload: the content has been moved onto pages
+  // Back/Forward between the unpaginated and paged views (entries of the same document)
+  // need a reload, since the content has been moved onto pages
   on('popstate', () => new URLSearchParams(location.search).get('paged') != SP.get('paged') && location.reload());
   function addToggle() {
     if (finished || has(d.body, 'pagesjs') || noToggle()) return;
-    // a page can reserve a place for the button with <span class="pagesjs-toggle"></span>
-    // (e.g., in a navigation bar); otherwise it floats at the top left
+    // a page can reserve a place for the button with <span class="pagesjs-toggle"></span>;
+    // otherwise it floats at the top left
     const slot = $('.pagesjs-toggle'), tools = slot || make('div', 'pagesjs-tools');
     tools.append(pagedButton());
     slot || d.body.append(tools);
