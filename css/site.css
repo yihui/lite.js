@@ -22,25 +22,14 @@ h1, h2, h3 {
       box-shadow: 0 1.5px var(--accent), inset 0 -1px var(--accent);
       margin-bottom: -1px;
     }
-    &.right {
-      margin-left: auto;
-      margin-right: 0;
-      img { vertical-align: middle; }
-      &:hover img { filter: invert(1); }
-    }
   }
-  /* the print button of pages.js (<span class="pagesjs-toggle">) takes the place of
-     the right alignment of the GitHub icon that follows it */
-  .pagesjs-toggle {
-    display: flex;
-    margin-left: auto;
-    & + .right { margin-left: 0; }
-  }
-  button {
-    display: flex;  /* (the icon is a block, so that it is centered like the img in a link) */
-    border: 0; font: inherit; color: inherit; cursor: pointer;
-    svg { width: 24px; height: 24px; }  /* (as big as the GitHub icon) */
-  }
+  /* icons (e.g., GitHub) and the print button of pages.js (<span class="pagesjs-toggle">,
+     which pushes the icons after it to the right) */
+  img, svg { vertical-align: middle; }
+  a:hover img { filter: invert(1); }
+  .pagesjs-toggle { align-self: flex-end; margin-left: auto; }
+  button { border: 0; margin: 0; padding-inline: .25em; font: inherit; color: inherit; cursor: pointer; }
+  & > p > a:last-child { margin-right: 0; }
   /* package version next to the name: center it in the flex row */
   .version { align-self: center; margin-right: .5em; }
 }
