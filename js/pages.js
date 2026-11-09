@@ -98,7 +98,8 @@
     pending,  // the rest of the pagination, which is waiting for the probe
     running,  // the generator that does the rest of the pagination (see advance())
     progress, n_done = 0,  // the progress indicator and the number of finished pages
-    finished;  // is the pagination finished?
+    finished,  // is the pagination finished?
+    SP = new URLSearchParams(location.search);
 
   // Diagnosis: pages that overflow, elements with scrollbars, and unbreakable elements that
   // stick out of the page (listed in a panel, see addTools())
@@ -809,8 +810,31 @@
     });
   }
 
-  // Buttons (top left) that open panels: a clone of the TOC, collapsed by default so that
-  // readers can get it at any time; and the problems (if any) to click through.
+  // The button that toggles the pagination (the paged state is the query param ?paged=1)
+  const printer = '<svg viewBox="0 0 16 16" width="1.1em" height="1.1em" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.3" stroke-linejoin="round"><path d="M4.5 6V2h7v4M4.5 12h-2.5V6h12v6h-2.5"/><rect x="4.5" y="9" width="7" height="5"/></svg>';
+  function toolButton(html, title) {
+    const btn = make('button');
+    btn.innerHTML = html; btn.title = title;
+    return btn;
+  }
+  // opt out with <body data-pages-toggle="false"> (e.g., if the page has its own print button)
+  function noToggle() { return d.body.dataset.pagesToggle === 'false'; }
+  // The button of the unpaginated page. The paged view is a new history entry, so the
+  // Back button of the browser returns to the unpaginated view (see the popstate handler).
+  function pagedButton() {
+    const btn = toolButton(printer, 'Paginate for printing');
+    btn.className = 'pagesjs-print';
+    btn.onclick = () => {
+      paginate();
+      SP.set('paged', 1); history.pushState({}, '', `${location.pathname}?${SP}`);
+    };
+    return btn;
+  }
+
+  // Buttons (top left) of the paginated view that open panels: a clone of the TOC,
+  // collapsed by default so that readers can get it at any time; and the problems (if
+  // any) to click through.
   function addTools() {
     const tools = make('div', 'pagesjs-tools'), toc = $('#TOC:not(.chapter-toc)'), bad = problems();
     const closeAll = () => {
@@ -818,8 +842,8 @@
       $('.' + hit)?.classList.remove(hit);
     };
     function add(text, title, content) {
-      const btn = make('button'), panel = make('div', 'pagesjs-panel');
-      btn.textContent = text; btn.title = title; panel.hidden = true; panel.append(content);
+      const btn = toolButton(text, title), panel = make('div', 'pagesjs-panel');
+      panel.hidden = true; panel.append(content);
       btn.onclick = () => { const was = panel.hidden; closeAll(); panel.hidden = !was; };
       tools.append(btn, panel);
       return panel;
@@ -982,6 +1006,7 @@
     main_title = shortTitle($('h1.title, .pagesjs-front h1, .title, h1'));
 
     cls.add('pagesjs');
+    $$('.pagesjs-tools, .pagesjs-print').forEach(el => el.remove());  // (the toggle of the unpaginated page; addTools() makes new tools)
     d.body.append(hold);
     if (!quiet) {  // a simple indicator to tell users to wait
       progress = make('div', 'pagesjs-progress');
@@ -1033,17 +1058,19 @@
   on('pagesjs:paginate', () => {
     finished ? fire('pagesjs:after') : paginate();
   });
-  // use query param ?paged=1 to indicate pagination (press p to toggle)
-  const SP = new URLSearchParams(location.search);
+  // use query param ?paged=1 to indicate pagination; an unpaginated page gets a
+  // button to start it (in the place reserved for it, or at the top left, not fixed)
   SP.get('paged') && paginate();
-  on('keypress', e => {
-    if (e.key === 'p') {
-      if (SP.get('paged')) {
-        SP.delete('paged'); location.href = location.pathname + (SP.size ? `?${SP}` : '');
-      } else {
-        paginate();
-        SP.set('paged', 1); history.replaceState({}, '', `${location.pathname}?${SP}`);
-      }
-    }
-  });
+  // going Back/Forward between the unpaginated view and the paged one (which are entries of
+  // the same document) needs a reload: the content has been moved onto pages
+  on('popstate', () => new URLSearchParams(location.search).get('paged') != SP.get('paged') && location.reload());
+  function addToggle() {
+    if (finished || has(d.body, 'pagesjs') || noToggle()) return;
+    // a page can reserve a place for the button with <span class="pagesjs-toggle"></span>
+    // (e.g., in a navigation bar); otherwise it floats at the top left
+    const slot = $('.pagesjs-toggle'), tools = slot || make('div', 'pagesjs-tools');
+    tools.append(pagedButton());
+    slot || d.body.append(tools);
+  }
+  if (!SP.get('paged')) d.readyState === 'loading' ? d.addEventListener('DOMContentLoaded', addToggle) : addToggle();
 })(document);

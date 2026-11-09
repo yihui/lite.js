@@ -431,7 +431,7 @@ test('a button lists problems to click through', async ({page}) => {
 <div id="out" class="figure" style="width: 3000px; height: 20px">z</div>
 <div id="fine" style="overflow: auto">ok</div></main>`);
   await page.goto(url + '?paged=1');
-  const btn = page.locator('.pagesjs-tools > button'), panel = page.locator('.pagesjs-panel'), hit = page.locator('.pagesjs-hit');
+  const btn = page.locator('.pagesjs-tools > button:not(.pagesjs-print)'), panel = page.locator('.pagesjs-panel'), hit = page.locator('.pagesjs-hit');
   await expect(btn).toHaveText('\u26a0');
   await expect(panel).toBeHidden();
   await btn.click();
@@ -448,13 +448,13 @@ test('a button lists problems to click through', async ({page}) => {
 test('no button for problems if there are none', async ({page}) => {
   await page.goto(fixture('clean', `<main>${para(3)}</main>`) + '?paged=1');
   await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
-  await expect(page.locator('.pagesjs-tools')).toHaveCount(0);
+  await expect(page.locator('.pagesjs-tools > button:not(.pagesjs-print)')).toHaveCount(0);
 });
 
 test('a collapsed TOC button opens a clone of the TOC', async ({page}) => {
   const url = fixture('tocbtn', `<main><nav id="TOC"><ul><li><a href="#a">A</a></li></ul></nav>${para(20).replace('<p>', '<h2 id="a">A</h2><p>')}</main>`);
   await page.goto(url + '?paged=1');
-  const btn = page.locator('.pagesjs-tools > button'), panel = page.locator('.pagesjs-panel');
+  const btn = page.locator('.pagesjs-tools > button:not(.pagesjs-print)'), panel = page.locator('.pagesjs-panel');
   await expect(btn).toBeVisible();
   await expect(panel).toBeHidden();
   await btn.click();
@@ -464,6 +464,44 @@ test('a collapsed TOC button opens a clone of the TOC', async ({page}) => {
   await expect(panel).toBeVisible();  // (stays open after a link is clicked)
   await page.mouse.click(5, 500);  // outside the panel
   await expect(panel).toBeHidden();
+});
+
+test('a print button paginates; Back returns to the unpaginated view', async ({page}) => {
+  const url = fixture('toggle', `<main>${para(20)}</main>`);
+  await page.goto(url);
+  const btn = page.locator('.pagesjs-print'), paged = () => page.evaluate(() => document.body.classList.contains('pagesjs'));
+  await expect(btn).toBeVisible();
+  expect(await page.locator('.pagesjs-tools').evaluate(el => getComputedStyle(el).position)).toBe('absolute');
+  await btn.click();
+  await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
+  expect(page.url()).toContain('paged=1');
+  await expect(btn).toHaveCount(0);  // (no button in the paged view)
+  await page.goBack();
+  await expect(btn).toBeVisible();
+  expect(page.url()).not.toContain('paged');
+  expect(await paged()).toBe(false);
+  await page.goForward();
+  await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
+});
+
+test('the print button goes in a reserved place', async ({page}) => {
+  const url = fixture('slot', `<nav><span class="pagesjs-toggle"></span></nav><main>${para(20)}</main>`);
+  await page.goto(url);
+  await expect(page.locator('nav .pagesjs-toggle > .pagesjs-print')).toBeVisible();
+  await expect(page.locator('.pagesjs-tools')).toHaveCount(0);  // (no floating bar)
+  await page.locator('.pagesjs-print').click();
+  await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
+  await expect(page.locator('.pagesjs-print')).toHaveCount(0);
+});
+
+test('data-pages-toggle="false" removes the print button', async ({page}) => {
+  const url = fixture('notoggle', `<main>${para(3)}</main>`, 'data-pages-toggle="false"');
+  await page.goto(url);
+  await page.waitForTimeout(300);
+  await expect(page.locator('.pagesjs-print')).toHaveCount(0);
+  await page.goto(url + '?paged=1');
+  await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
+  await expect(page.locator('.pagesjs-print')).toHaveCount(0);
 });
 
 // An element with the class pagesjs-wide takes a landscape page of its own (and is not

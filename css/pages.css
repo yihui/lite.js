@@ -195,7 +195,7 @@
   outline-offset: 2px;
 }
 .pagesjs-tools {
-  position: fixed;
+  position: absolute;  /* (scrolls with the unpaginated page; fixed when paginated) */
   top: 1em;
   left: 1em;
   z-index: 9999;
@@ -287,6 +287,7 @@
     }
   }
 }
+.pagesjs .pagesjs-tools { position: fixed; }
 @media print {
   .pagesjs-tools { display: none; }
   .pagesjs-hit { outline: none; }

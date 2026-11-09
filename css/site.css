@@ -9,7 +9,7 @@ h1, h2, h3 {
       border-bottom: 1px dashed var(--rule-color);
     }
   }
-  a {
+  a, button {
     display: inline-block;
     background: white;
     padding: .2em .5em;
@@ -28,6 +28,18 @@ h1, h2, h3 {
       img { vertical-align: middle; }
       &:hover img { filter: invert(1); }
     }
+  }
+  /* the print button of pages.js (<span class="pagesjs-toggle">) takes the place of
+     the right alignment of the GitHub icon that follows it */
+  .pagesjs-toggle {
+    display: flex;
+    margin-left: auto;
+    & + .right { margin-left: 0; }
+  }
+  button {
+    display: flex;  /* (the icon is a block, so that it is centered like the img in a link) */
+    border: 0; font: inherit; color: inherit; cursor: pointer;
+    svg { width: 24px; height: 24px; }  /* (as big as the GitHub icon) */
   }
   /* package version next to the name: center it in the flex row */
   .version { align-self: center; margin-right: .5em; }
