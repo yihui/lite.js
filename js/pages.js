@@ -132,8 +132,9 @@
     }
     return m;
   }
-  // the height of the page without the margin at the end of its content
-  function pageHeight() { syncNotes(); return crowded() ? Infinity : rect(box).height - trailingMargin(); }
+  // How far (px) the page, without the margin at the end of its content, goes beyond what
+  // fits: it fits if its height rounds to H or less (< H + .5).
+  function excess() { syncNotes(); return (crowded() ? Infinity : rect(box).height - trailingMargin()) - H - .5; }
   function overflows() { syncNotes(); return (used = box.scrollHeight - trailingMargin()) > H || crowded(); }
   // Does a float take the page, with something after it? Then nothing else fits.
   function taken() { return !!whole && box_body.contains(whole); }
@@ -215,6 +216,7 @@
   }
   // The container for content on the current page: clones of the content root and its
   // ancestors, so selectors like `main h2` still apply on pages.
+  function setRoot(el) { wrap = el ? ancestors(el) : []; box_ctx = null; }
   function ctx() {
     if (!wrap.length) return box_body;
     if (!box_ctx || !box_body.contains(box_ctx)) {
@@ -617,7 +619,7 @@
     // Put all rows on the page and lay them out once. The rows whose bottoms are below
     // (the bottom of the last row - the overflow) do not fit: put them back.
     tb2.append(...rows);
-    const over = pageHeight() - H - .5;  // (see fitLines())
+    const over = excess();
     if (over >= 0) {
       const limit = rect(rows[n - 1]).bottom - over;
       let lo = 0, hi = n;  // the first row below the limit (by bisection)
@@ -627,7 +629,7 @@
       }
       let k = Math.max(lo, min);
       tb.prepend(...rows.slice(k));
-      while (k > min && pageHeight() > H + .5) tb.prepend(rows[--k]);  // make sure they fit
+      while (k > min && excess() > 0) tb.prepend(rows[--k]);  // make sure they fit
     }
     // clear the clone if the current page can't fit even one row
     tb2.rows.length || clear();
@@ -664,8 +666,7 @@
   function fitLines(code, lines, prev) {
     const n = lines.length, min = prev ? 0 : 1;
     code.innerHTML = lines.join('\n');
-    // (the page fits if its height rounds to H or less, i.e., it is < H + .5)
-    const over = pageHeight() - H - .5;
+    const over = excess();
     if (over < 0) return n;
     const r = range(), bottoms = [];  // the bottom of each line
     code.childNodes.forEach(node => {
@@ -686,7 +687,7 @@
     while (i && i < n && !lines[i].trim()) i++;
     code.innerHTML = lines.slice(0, Math.max(i, min)).join('\n');
     // make sure the lines fit (the line break may not be at the bottom of a line)
-    while (i > min && pageHeight() > H + .5) {
+    while (i > min && excess() > 0) {
       code.innerHTML = lines.slice(0, --i).join('\n');
     }
     return Math.max(i, min);
@@ -700,7 +701,7 @@
   function probe(roots, els) {
     addCls(box, 'pagesjs-settle');
     roots.forEach((el, i) => {
-      wrap = ancestors(el); box_ctx = null; ctx().append(...els[i]);
+      setRoot(el); ctx().append(...els[i]);
     });
     probed = els;
     return new Promise(done => {
@@ -720,7 +721,7 @@
     if (!probed) return;
     probed.forEach(ch => ch.forEach(markY));  // (before removing anything, to lay out only once)
     probed.forEach(ch => ch.forEach(el => el.remove()));
-    box_body.innerHTML = ''; box_ctx = null; wrap = [];
+    box_body.innerHTML = ''; setRoot();
     rmCls(box, 'pagesjs-settle');
     probed = null;
   }
@@ -910,7 +911,7 @@
       book && nextPage();
     }
     for (const [i, el] of roots.entries()) {
-      wrap = ancestors(el); box_ctx = null;
+      setRoot(el);
       book && (box.innerText === '' ? newPage(box) : nextPage());
       const list = els[i];
       for (let j = 0; j < list.length; j++) {
