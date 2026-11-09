@@ -584,15 +584,32 @@
     }
     return ends;
   }
-  // the offset of the first character on the k-th line of a text node (by bisection)
-  function lineOffset(node, k, r) {
-    let lo = 0, hi = node.length;
+  // the first i in [0, n) for which the monotone test is true (n if none)
+  function bisect(n, test) {
+    let lo = 0, hi = n;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      r.setStart(node, 0); r.setEnd(node, mid);
-      r.getClientRects().length > k ? hi = mid : lo = mid + 1;
+      test(mid) ? hi = mid : lo = mid + 1;
     }
-    return lo - 1;  // (the range ends after the first character of the line)
+    return lo;
+  }
+  // the offset of the first character on the k-th line of a text node
+  function lineOffset(node, k, r) {
+    // (the range ends after the first character of the line)
+    return bisect(node.length, mid => (r.setStart(node, 0), r.setEnd(node, mid), r.getClientRects().length > k)) - 1;
+  }
+  // How many of n pieces (rows or lines) fit the page? All of them are on it, and laid out
+  // once; the pieces whose bottoms are below (the bottom of the last one - the excess) do not
+  // fit. show(i) puts only the first i pieces on the page, which is checked and fixed in the
+  // end (a break may not be at the bottom of a piece). skip(i) may adjust the estimate.
+  function fitCount(n, bottom, min, show, skip = i => i) {
+    const over = excess();
+    if (over < 0) return n;
+    const limit = bottom(n - 1) - over;
+    let i = skip(bisect(n, j => bottom(j) > limit));
+    show(Math.max(i, min));
+    while (i > min && excess() > 0) show(--i);
+    return Math.max(i, min);
   }
   // A copy of a repeated table header/footer. Its notes appear once, on the first page: the
   // first copy takes the markers of the original, so later copies have none. undo puts the
@@ -616,21 +633,8 @@
     cap && head.append(cap);
     // copy the table header and footer (the header goes first, as in the original)
     [el.tHead, tb2, el.tFoot].forEach(t => t && head.append(t === tb2 ? t : cloneHold(t, undo)));
-    // Put all rows on the page and lay them out once. The rows whose bottoms are below
-    // (the bottom of the last row - the overflow) do not fit: put them back.
     tb2.append(...rows);
-    const over = excess();
-    if (over >= 0) {
-      const limit = rect(rows[n - 1]).bottom - over;
-      let lo = 0, hi = n;  // the first row below the limit (by bisection)
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        rect(rows[mid]).bottom <= limit ? lo = mid + 1 : hi = mid;
-      }
-      let k = Math.max(lo, min);
-      tb.prepend(...rows.slice(k));
-      while (k > min && excess() > 0) tb.prepend(rows[--k]);  // make sure they fit
-    }
+    fitCount(n, j => rect(rows[j]).bottom, min, k => tb.prepend(...rows.slice(k)));
     // clear the clone if the current page can't fit even one row
     tb2.rows.length || clear();
     // avoid a single row on either page
@@ -660,37 +664,30 @@
     i && head.append(...tail);
     return [head, null];
   }
-  // How many lines fit the box? Put all lines in <code> and lay them out once, then read the
-  // positions of the line breaks (lines are balanced, so the breaks are in the text nodes
-  // that are children of <code>), instead of guessing and testing counts.
+  // How many lines fit the box? The positions of the line breaks tell (lines are balanced,
+  // so the breaks are in the text nodes that are children of <code>).
   function fitLines(code, lines, prev) {
-    const n = lines.length, min = prev ? 0 : 1;
-    code.innerHTML = lines.join('\n');
-    const over = excess();
-    if (over < 0) return n;
-    const r = range(), bottoms = [];  // the bottom of each line
-    code.childNodes.forEach(node => {
-      if (node.nodeType !== 3) return;
-      for (let i = node.data.indexOf('\n'); i >= 0; i = node.data.indexOf('\n', i + 1)) {
-        r.setStart(node, i); r.setEnd(node, i + 1);
-        bottoms.push(rect(r).bottom);
-      }
-    });
-    // the bottom of the last line (which has no line break), and the space after it
-    r.selectNodeContents(code);
-    const rects = r.getClientRects(), last = rects[rects.length - 1].bottom;
-    bottoms.push(last);
-    // the lines whose bottoms are not below (the bottom of the last line - over)
-    let i = 0;
-    while (i < n && bottoms[i] <= last - over) i++;
-    // blank lines at the end take no space, so don't leave them to the next page
-    while (i && i < n && !lines[i].trim()) i++;
-    code.innerHTML = lines.slice(0, Math.max(i, min)).join('\n');
-    // make sure the lines fit (the line break may not be at the bottom of a line)
-    while (i > min && excess() > 0) {
-      code.innerHTML = lines.slice(0, --i).join('\n');
+    const show = i => code.innerHTML = lines.slice(0, i).join('\n');
+    show(lines.length);
+    return fitCount(lines.length, j => bottoms()[j], prev ? 0 : 1, show,
+      // blank lines at the end take no space, so don't leave them to the next page
+      i => { while (i && i < lines.length && !lines[i].trim()) i++; return i; });
+    function bottoms() {  // the bottom of each line (cached)
+      if (bottoms.v) return bottoms.v;
+      const r = range(), v = bottoms.v = [];
+      code.childNodes.forEach(node => {
+        if (node.nodeType !== 3) return;
+        for (let i = node.data.indexOf('\n'); i >= 0; i = node.data.indexOf('\n', i + 1)) {
+          r.setStart(node, i); r.setEnd(node, i + 1);
+          v.push(rect(r).bottom);
+        }
+      });
+      // the last line has no line break
+      r.selectNodeContents(code);
+      const rects = r.getClientRects();
+      v.push(rects[rects.length - 1].bottom);
+      return v;
     }
-    return Math.max(i, min);
   }
 
   // --- Letting content settle before measuring it --------------------
