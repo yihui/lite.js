@@ -431,7 +431,7 @@ test('a button lists problems to click through', async ({page}) => {
 <div id="out" class="figure" style="width: 3000px; height: 20px">z</div>
 <div id="fine" style="overflow: auto">ok</div></main>`);
   await page.goto(url + '?paged=1');
-  const btn = page.locator('.pagesjs-tools > button:not(.pagesjs-print)'), panel = page.locator('.pagesjs-panel'), hit = page.locator('.pagesjs-hit');
+  const btn = page.locator('.pagesjs-tools > a:not(.pagesjs-print)'), panel = page.locator('.pagesjs-panel'), hit = page.locator('.pagesjs-hit');
   await expect(btn).toHaveText('\u26a0');
   await expect(panel).toBeHidden();
   await btn.click();
@@ -448,13 +448,13 @@ test('a button lists problems to click through', async ({page}) => {
 test('no button for problems if there are none', async ({page}) => {
   await page.goto(fixture('clean', `<main>${para(3)}</main>`) + '?paged=1');
   await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
-  await expect(page.locator('.pagesjs-tools > button:not(.pagesjs-print)')).toHaveCount(0);
+  await expect(page.locator('.pagesjs-tools > a:not(.pagesjs-print)')).toHaveCount(0);
 });
 
 test('a collapsed TOC button opens a clone of the TOC', async ({page}) => {
   const url = fixture('tocbtn', `<main><nav id="TOC"><ul><li><a href="#a">A</a></li></ul></nav>${para(20).replace('<p>', '<h2 id="a">A</h2><p>')}</main>`);
   await page.goto(url + '?paged=1');
-  const btn = page.locator('.pagesjs-tools > button:not(.pagesjs-print)'), panel = page.locator('.pagesjs-panel');
+  const btn = page.locator('.pagesjs-tools > a:not(.pagesjs-print)'), panel = page.locator('.pagesjs-panel');
   await expect(btn).toBeVisible();
   await expect(panel).toBeHidden();
   await btn.click();
@@ -488,6 +488,7 @@ test('the print button goes in a reserved place', async ({page}) => {
   const url = fixture('slot', `<nav><span class="pagesjs-toggle"></span></nav><main>${para(20)}</main>`);
   await page.goto(url);
   await expect(page.locator('nav .pagesjs-toggle > .pagesjs-print')).toBeVisible();
+  expect(await page.locator('.pagesjs-print').evaluate(el => el.tagName)).toBe('A');  // (a link, styled like the site's)
   await expect(page.locator('.pagesjs-tools')).toHaveCount(0);  // (no floating bar)
   await page.locator('.pagesjs-print').click();
   await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));

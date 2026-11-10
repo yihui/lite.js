@@ -204,17 +204,19 @@
   align-items: flex-start;
   gap: .5em;
   font: 14px sans-serif;
-  button, .pagesjs-panel {
+  & > a, .pagesjs-panel {
     background: Canvas;
     color: CanvasText;
     border: 1px solid;
     border-radius: .3em;
   }
-  button {
+  & > a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 2.2em;
     height: 2.2em;
-    padding: 0;
-    cursor: pointer;
+    text-decoration: none;
   }
 }
 .pagesjs-panel {

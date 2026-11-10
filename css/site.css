@@ -9,7 +9,7 @@ h1, h2, h3 {
       border-bottom: 1px dashed var(--rule-color);
     }
   }
-  a, button {
+  a {
     display: inline-block;
     background: white;
     padding: .2em .5em;
@@ -24,12 +24,22 @@ h1, h2, h3 {
     }
   }
   /* icons (e.g., GitHub) and the print button of pages.js (<span class="pagesjs-toggle">,
-     which pushes the icons after it to the right) */
-  img, svg { vertical-align: middle; }
+     which pushes the icons after it to the right): same size, 1.5em on hover */
+  img, svg { width: 1.1em; height: 1.1em; vertical-align: middle; transition: transform .15s; }
+  a:hover :is(img, svg) { transform: scale(1.36); }
   a:hover img { filter: invert(1); }
-  .pagesjs-toggle { align-self: flex-end; margin-left: auto; }
-  button { border: 0; margin: 0; padding-inline: .25em; font: inherit; color: inherit; cursor: pointer; }
-  & > p > a:last-child { margin-right: 0; }
+  /* square boxes around the icons (1.1em + padding), centered in the row */
+  a:has(> :is(img, svg)) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    width: 1.6em;
+    height: 1.6em;
+    padding: 0;
+    margin-right: 0;
+  }
+  .pagesjs-toggle { display: flex; align-self: center; margin-left: auto; }
   /* package version next to the name: center it in the flex row */
   .version { align-self: center; margin-right: .5em; }
 }

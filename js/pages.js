@@ -767,9 +767,11 @@
   // The button that toggles the pagination (the paged state is the query param ?paged=1)
   const printer = '<svg viewBox="0 0 16 16" width="1.1em" height="1.1em" fill="none" stroke="currentColor" ' +
     'stroke-width="1.3" stroke-linejoin="round"><path d="M4.5 6V2h7v4M4.5 12h-2.5V6h12v6h-2.5"/><rect x="4.5" y="9" width="7" height="5"/></svg>';
-  function toolButton(html, title) {
-    const btn = make('button');
-    btn.innerHTML = html; btn.title = title;
+  // (a link, not a <button>, so that it is styled like the other links and icons of a page)
+  function toolButton(html, title, click) {
+    const btn = make('a');
+    btn.href = '#'; btn.setAttribute('role', 'button'); btn.innerHTML = html; btn.title = title;
+    btn.onclick = e => { e.preventDefault(); click(); };
     return btn;
   }
   // opt out with <body data-pages-toggle="false"> (e.g., if the page has its own print button)
@@ -777,12 +779,11 @@
   // The button of the unpaginated page. The paged view is a new history entry, so Back
   // returns to the unpaginated view (see the popstate handler).
   function pagedButton() {
-    const btn = toolButton(printer, 'Paginate for printing');
-    btn.className = 'pagesjs-print';
-    btn.onclick = () => {
+    const btn = toolButton(printer, 'Paginate for printing', () => {
       paginate();
       SP.set('paged', 1); history.pushState({}, '', `${location.pathname}?${SP}`);
-    };
+    });
+    btn.className = 'pagesjs-print';
     return btn;
   }
 
@@ -795,9 +796,9 @@
       unhit();
     };
     function add(text, title, content) {
-      const btn = toolButton(text, title), panel = make('div', 'pagesjs-panel');
+      const panel = make('div', 'pagesjs-panel');
+      const btn = toolButton(text, title, () => { const was = panel.hidden; closeAll(); panel.hidden = !was; });
       panel.hidden = true; panel.append(content);
-      btn.onclick = () => { const was = panel.hidden; closeAll(); panel.hidden = !was; };
       tools.append(btn, panel);
       return panel;
     }
