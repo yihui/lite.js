@@ -12,9 +12,9 @@ for i in $(git diff --name-only $tag1 $tag2 | grep -E "[.](css|js)$"); do
   fi
 done
 
-# wait (up to ~10 min) until the URL's response contains the new version
+# wait (up to ~20 min) until the URL's response contains the new version
 wait_for() {
-  for i in $(seq 20); do
+  for i in $(seq 40); do
     echo "checking: $1"
     sleep 30
     curl -sSfL "$1" | grep "$2" >/dev/null && return 0
