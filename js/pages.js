@@ -788,7 +788,8 @@
   }
 
   // Buttons (top left) of the paginated view that open panels: a clone of the TOC (collapsed,
-  // so readers can get it any time), and the problems, if any, to click through.
+  // so readers can get it any time), and the problems, if any, to click through. Last, a
+  // button to print the paginated pages.
   function addTools() {
     const tools = make('div', 'pagesjs-tools'), toc = $('#TOC:not(.chapter-toc)'), bad = problems();
     const closeAll = () => {
@@ -821,7 +822,10 @@
       });
       add('⚠', 'Problems (may be cut off or overflow)', ul);
     }
-    tools.children.length && d.body.append(tools);
+    const print = toolButton(printer, 'Print this page', () => { closeAll(); window.print(); });
+    print.className = 'pagesjs-tool-print';
+    tools.append(print);
+    d.body.append(tools);
     on('keydown', e => e.key === 'Escape' && closeAll());
     on('click', e => tools.contains(e.target) || closeAll());
   }

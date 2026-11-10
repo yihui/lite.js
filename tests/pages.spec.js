@@ -431,7 +431,7 @@ test('a button lists problems to click through', async ({page}) => {
 <div id="out" class="figure" style="width: 3000px; height: 20px">z</div>
 <div id="fine" style="overflow: auto">ok</div></main>`);
   await page.goto(url + '?paged=1');
-  const btn = page.locator('.pagesjs-tools > a:not(.pagesjs-print)'), panel = page.locator('.pagesjs-panel'), hit = page.locator('.pagesjs-hit');
+  const btn = page.locator('.pagesjs-tools > a:not(.pagesjs-tool-print)'), panel = page.locator('.pagesjs-panel'), hit = page.locator('.pagesjs-hit');
   await expect(btn).toHaveText('\u26a0');
   await expect(panel).toBeHidden();
   await btn.click();
@@ -448,13 +448,25 @@ test('a button lists problems to click through', async ({page}) => {
 test('no button for problems if there are none', async ({page}) => {
   await page.goto(fixture('clean', `<main>${para(3)}</main>`) + '?paged=1');
   await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
-  await expect(page.locator('.pagesjs-tools > a:not(.pagesjs-print)')).toHaveCount(0);
+  await expect(page.locator('.pagesjs-tools > a:not(.pagesjs-tool-print)')).toHaveCount(0);
+});
+
+test('the last toolbar button prints the paginated pages', async ({page}) => {
+  await page.goto(fixture('printbtn', `<main>${para(20)}</main>`) + '?paged=1');
+  await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
+  await page.evaluate(() => { window.printed = 0; window.print = () => { window.printed++; }; });
+  const btn = page.locator('.pagesjs-tools > a').last();
+  await expect(btn).toHaveAttribute('title', 'Print this page');
+  await expect(page.locator('.pagesjs-print')).toHaveCount(0);  // (the paginate button is gone)
+  await btn.click();
+  expect(await page.evaluate(() => window.printed)).toBe(1);
+  expect(page.url()).toContain('paged=1');  // (no navigation)
 });
 
 test('a collapsed TOC button opens a clone of the TOC', async ({page}) => {
   const url = fixture('tocbtn', `<main><nav id="TOC"><ul><li><a href="#a">A</a></li></ul></nav>${para(20).replace('<p>', '<h2 id="a">A</h2><p>')}</main>`);
   await page.goto(url + '?paged=1');
-  const btn = page.locator('.pagesjs-tools > a:not(.pagesjs-print)'), panel = page.locator('.pagesjs-panel');
+  const btn = page.locator('.pagesjs-tools > a:not(.pagesjs-tool-print)'), panel = page.locator('.pagesjs-panel');
   await expect(btn).toBeVisible();
   await expect(panel).toBeHidden();
   await btn.click();
