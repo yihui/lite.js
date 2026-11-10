@@ -445,6 +445,34 @@ test('a button lists problems to click through', async ({page}) => {
   await expect(hit).toHaveCount(0);
 });
 
+// The problems panel names pages by the number on the page, not by the index of the box (the
+// frontmatter page is not counted, so the two differ).
+test('problems name pages by their page numbers', async ({page}) => {
+  const book = `<link rel="stylesheet" href="${new URL('../css/book.css', import.meta.url).href}">`;
+  await paginate(page, fixture('problem-number', `<header><h1 class="title">Doc</h1></header><main><h1>One</h1>${para(30)}
+<div id="out" class="figure" style="width: 3000px; height: 20px">z</div></main>`, '', book));
+  const {label, index} = await page.evaluate(() => {
+    const pages = [...document.querySelectorAll('.pagesjs-page')], pg = pages.find(p => p.querySelector('#out'));
+    return {label: pg.children[0].dataset.pageNumber, index: pages.indexOf(pg) + 1};
+  });
+  expect(label).not.toBe(String(index));
+  await page.locator('.pagesjs-tools > a', {hasText: '\u26a0'}).click();
+  await expect(page.locator('.pagesjs-panel li', {hasText: 'figure'})).toContainText(`p.${label} `);
+});
+
+// KaTeX writes a hidden <math> (1px, clipped) next to the visible HTML for screen readers; its
+// box is laid out as one line and sticks out where the visible math wraps.
+test('the hidden MathML of KaTeX does not stick out', async ({page}) => {
+  const wide = `<math><mtext>${'x'.repeat(400)}</mtext></math>`;
+  const katex = `<span class="katex"><span class="katex-mathml" style="position: absolute; clip: rect(1px, 1px, 1px, 1px); width: 1px; height: 1px; overflow: hidden">${wide}</span><span class="katex-html">x</span></span>`;
+  const warn = page.locator('.pagesjs-tools > a', {hasText: '\u26a0'});
+  await paginate(page, fixture('katex-mathml', `<main><p>Rendered to ${katex}.</p></main>`));
+  await expect(warn).toHaveCount(0);
+  // a visible MathML that is too wide is still reported
+  await paginate(page, fixture('wide-mathml', `<main><p>Rendered to ${wide}.</p></main>`));
+  await expect(warn).toHaveCount(1);
+});
+
 test('no button for problems if there are none', async ({page}) => {
   await page.goto(fixture('clean', `<main>${para(3)}</main>`) + '?paged=1');
   await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));

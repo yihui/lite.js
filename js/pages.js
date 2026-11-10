@@ -92,7 +92,8 @@
   function problems() {
     const out = [], sc = /auto|scroll/, scrolls = [];
     boxes.forEach((b, i) => {
-      const body = b.children[1], r = rect(body), p = `p.${i + 1}`;
+      // the page number shown on the page (numberPages() skips the front page)
+      const body = b.children[1], r = rect(body), p = `p.${b.children[0].dataset.pageNumber || i + 1}`;
       has(b, 'page-multiple') && out.push([b, `${p} overflows`]);
       $$('*', body).forEach(el => {
         const cs = style(el), name = el.tagName.toLowerCase() + (el.className && '.' + el.classList[0]);
@@ -103,7 +104,9 @@
             return scrolls.push(el), out.push([el, `${p} ${name} scrolls: ${sw}x${sh} in ${cw}x${ch}`]);
         }
         // (what sticks out of a scrolling element is reached by scrolling it)
-        const e = el.matches(atomic) && !scrolls.some(s => s.contains(el)) && rect(el);
+        // (KaTeX's <math> is a hidden copy for screen readers: 1px wide and clipped, its box
+        // does not wrap with the visible .katex-html and may stick out of the page)
+        const e = el.matches(atomic) && !el.closest('.katex-mathml') && !scrolls.some(s => s.contains(el)) && rect(el);
         e && (e.right > r.right + 1 || e.bottom > r.bottom + 1) &&
           out.push([el, `${p} ${name} sticks out: ${px(e.width)}x${px(e.height)} on ${px(r.width)}x${px(r.height)}`]);
       });
