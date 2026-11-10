@@ -35,6 +35,6 @@ CHROMIUM_PATH=/usr/bin/chromium-browser npm test   # use an installed browser
 
 ## Releases
 
-Use `./release.sh [-p] [-t] [patch|minor|major|X.Y.Z]` (default: patch). It runs the tests (`-t` skips them), bumps the version in `package.json` and `package-lock.json`, commits `Bump to X.Y.Z`, and tags `vX.Y.Z`. `-p` also pushes the commit and the tag; pushing a `v*` tag triggers `.github/workflows/npm-publish.yml`, which builds the minified files, runs `npm publish`, and purges the CDN cache.
+Use `./release.sh [-t] [patch|minor|major|X.Y.Z]` (default: patch). It pushes `main`, waits for the CI tests (`test.yml`; `-t` skips the wait) and, only if they pass, bumps the version in `package.json` and `package-lock.json`, commits `Bump to X.Y.Z`, tags `vX.Y.Z`, and pushes both. Pushing a `v*` tag triggers `.github/workflows/npm-publish.yml`, which builds the minified files, runs `npm publish`, and purges the CDN cache. The tests are not run locally: on a shared machine with a low thread limit (`ulimit -u`) too many parallel browsers crash.
 
-Pushing and tagging are outward-facing: run the script (and pass `-p`) only when the user asks for a release.
+Pushing and tagging are outward-facing: run the script only when the user asks for a release.
