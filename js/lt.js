@@ -595,7 +595,7 @@
     for (const rs of rowSpans)
       out.push(`<th scope="col" class="lt-row-group">${txt(rs.label)}</th>`);
     cols.forEach((c, i) =>
-      out.push(`<th scope="col"${attr("class", colCls[i])}>${txt(colLabels[i])}${mark("column_labels", c)}${
+      out.push(`<th scope="col"${attr("class", colCls[i])}${colLabels[i] !== c ? ` title="${esc(c)}"` : ""}>${txt(colLabels[i])}${mark("column_labels", c)}${
         spec.types ? `<br><span class="lt-type">${esc(spec.types[c])}</span>` : ""}</th>`));
     out.push(`</tr></thead>`);
 
@@ -747,6 +747,9 @@
     // Also formatted cell text (all columns, hidden too), so plugins can
     // show displayed values (e.g. row detail).
     spec._display = display;
+    // Resolved labels, alignment, spanners, titles, and notes, for exporters
+    // (lt-export.js).
+    spec._tbl = { labels: colLabels, align, spanners, header: hdr, notes };
     // Expose resolved row structure for interactive plugin: separator
     // groups ({label, rows, raw}), per-row indent levels (array or null),
     // rowspan group columns (outermost first, or null). Plugin
