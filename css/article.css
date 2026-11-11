@@ -8,6 +8,7 @@ body {
   --side-margin: calc(0px - var(--side-width) - var(--side-gap));
 }
 body, blockquote, .side { background: #fafafa; }
+code a:not(:hover) { text-decoration: none; }
 /* a card: an article, except in pages.js pages */
 article:not(.pagesjs *), .frontmatter, .fullwidth, .embed-left, .embed-right {
   margin-top: 2em;
