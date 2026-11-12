@@ -779,13 +779,19 @@
   }
   // opt out with <body data-pages-toggle="false"> (e.g., if the page has its own print button)
   function noToggle() { return d.body.dataset.pagesToggle === 'false'; }
-  // The button of the unpaginated page. The paged view is a new history entry, so Back
-  // returns to the unpaginated view (see the popstate handler).
-  function pagedButton() {
-    const btn = toolButton(printer, 'Paginate for printing', () => {
+  // Toggle the pagination. The paged view is a new history entry, so Back returns to the
+  // unpaginated view (see the popstate handler); leaving it needs a reload.
+  function togglePaged() {
+    if (has(d.body, 'pagesjs')) {
+      SP.delete('paged'); location.href = location.pathname + (SP.size ? `?${SP}` : '');
+    } else {
       paginate();
       SP.set('paged', 1); history.pushState({}, '', `${location.pathname}?${SP}`);
-    });
+    }
+  }
+  // The button of the unpaginated page (the paged view has the key p instead)
+  function pagedButton() {
+    const btn = toolButton(printer, 'Paginate for printing (shortcut: press p)', togglePaged);
     btn.className = 'pagesjs-print';
     return btn;
   }
@@ -1014,6 +1020,9 @@
   // Back/Forward between the unpaginated and paged views (entries of the same document)
   // need a reload, since the content has been moved onto pages
   on('popstate', () => new URLSearchParams(location.search).get('paged') != SP.get('paged') && location.reload());
+  // press p (not in a form field, and not Ctrl/Alt/Command + P, which print) to toggle
+  on('keydown', e => e.key === 'p' && !(e.ctrlKey || e.altKey || e.metaKey) &&
+    !e.target.closest?.('input, textarea, select, [contenteditable]') && togglePaged());
   function addToggle() {
     if (finished || has(d.body, 'pagesjs') || noToggle()) return;
     // a page can reserve a place for the button with <span class="pagesjs-toggle"></span>;

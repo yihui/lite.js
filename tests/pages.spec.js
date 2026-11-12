@@ -524,6 +524,22 @@ test('a print button paginates; Back returns to the unpaginated view', async ({p
   await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
 });
 
+test('the key p toggles the pagination, except in form fields or with a modifier', async ({page}) => {
+  await page.goto(fixture('key', `<main><input id="in">${para(20)}</main>`));
+  const paged = () => page.evaluate(() => document.body.classList.contains('pagesjs'));
+  await page.locator('#in').press('p');
+  await page.keyboard.press('Alt+p');  // (Ctrl+P opens the print dialog of the browser)
+  await page.waitForTimeout(300);
+  expect(await paged()).toBe(false);
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press('p');
+  await page.waitForFunction(() => document.body.classList.contains('pagesjs') && !document.body.classList.contains('pagesjs-filling'));
+  expect(page.url()).toContain('paged=1');
+  await page.keyboard.press('p');  // (back to the unpaginated view)
+  await page.waitForFunction(() => !location.search.includes('paged') && !document.body.classList.contains('pagesjs'));
+  await expect(page.locator('.pagesjs-print')).toBeVisible();
+});
+
 test('the print button goes in a reserved place', async ({page}) => {
   const url = fixture('slot', `<nav><span class="pagesjs-toggle"></span></nav><main>${para(20)}</main>`);
   await page.goto(url);
