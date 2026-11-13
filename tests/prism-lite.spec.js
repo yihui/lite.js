@@ -147,3 +147,44 @@ test('plain text and already highlighted blocks are left alone', async ({page}) 
   expect(text).toBe('<b>x</b> <- 1');
   expect(await page.$$('#c b')).toHaveLength(0);
 });
+
+// extension API
+const withExt = async (page, body, scripts) => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hl-')), 'x.html');
+  fs.writeFileSync(file, `<!DOCTYPE html><meta charset="utf-8">${body}
+<script src="file://${root}/js/prism-lite.js"></script>${scripts}`);
+  await page.goto('file://' + file);
+};
+const tokensOf = (page, id) => page.$$eval(`#${id} .token`, els => els.map(e => e.className.replace('token ', '') + ':' + e.textContent));
+
+test('register(): new language and alias, rules with their own capture groups, flags', async ({page}) => {
+  await withExt(page, '<pre><code id="a" class="language-foo">Let x = "s" ;; 12</code></pre><pre><code id="b" class="language-fo">let y</code></pre>', `<script>
+PrismLite.register('foo', [
+  ['keyword', '\\\\b(let|var)\\\\b'],             // a capture group of its own
+  ['string', '(["\\'])(?:\\\\\\\\.|(?!\\\\1).)*\\\\1'],  // and a backreference
+  ['number', PrismLite.util.NUM],
+  ['punctuation', ';+']
+], {alias: ['fo'], flags: 'i'});
+</script>`);
+  expect(await tokensOf(page, 'a')).toEqual(['keyword:Let', 'string:"s"', 'punctuation:;;', 'number:12']);
+  expect(await tokensOf(page, 'b')).toEqual(['keyword:let']);
+  expect(await page.$eval('#a', e => e.textContent)).toBe('Let x = "s" ;; 12');
+});
+
+test('register(): a late registration redoes blocks that got generic highlighting', async ({page}) => {
+  await withExt(page, '<pre><code id="a" class="language-foo">let x</code></pre>', '');
+  expect(await tokensOf(page, 'a')).toEqual([]);
+  await page.evaluate(() => PrismLite.register('foo', [['keyword', '\\blet\\b']]));
+  expect(await tokensOf(page, 'a')).toEqual(['keyword:let']);
+  // and it does not touch other languages or plain blocks
+  expect(await page.$eval('#a', e => e.textContent)).toBe('let x');
+});
+
+test('register(): a bad regex is skipped with a warning, not thrown', async ({page}) => {
+  const warns = [];
+  page.on('console', m => m.type() === 'warning' && warns.push(m.text()));
+  await withExt(page, '<pre><code id="a" class="language-foo">let "x"</code></pre>',
+    `<script>PrismLite.register('foo', [['keyword', '(unclosed']]);</script>`);
+  expect(await tokensOf(page, 'a')).toEqual(['string:"x"']);
+  expect(warns.join()).toContain('PrismLite');
+});

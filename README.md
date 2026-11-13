@@ -171,6 +171,21 @@ the `token` classes of `prism-xcode.css`. Built-in rules for R, JS, CSS, HTML,
 Markdown, YAML, TeX, Bash, JSON, SQL, and diff; other languages get generic
 highlighting (strings, numbers, operators, comments). Replaces prism.js.
 
+More languages can come from separate scripts loaded after it, which call
+`PrismLite.register(name, rules, {alias, flags})`. `rules` is an array of
+`[tokenClass, regexSource, handler?]`, tried in order at each position (the
+first that matches wins); the regex may have capture groups and backreferences.
+`PrismLite.util` has the helpers the built-in languages use (e.g., `NUM`,
+`words()`), and `PrismLite.highlight(code, lang)` returns the HTML. Blocks that
+were highlighted before the language was registered are redone.
+
+``` js
+PrismLite.register('ini', [
+  ['comment', '[;#].*'], ['atrule', '^\\[[^\\]]+\\]'],
+  ['property', '^[\\w.-]+(?=\\s*=)'], ['string', PrismLite.util.STR]
+], {alias: ['conf']});
+```
+
 ## render-katex.js
 
 Simply run `renderMathInElement(document.body)` to render math expression using

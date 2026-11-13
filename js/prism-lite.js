@@ -41,7 +41,7 @@
       (m[3] ? span('punctuation', m[3]) : '');
   };
 
-  const langs = {
+  const langs = {__proto__: null,
     r: c(HC,
       // raw strings r"(...)", then ordinary strings, which may span lines
       ['string', S`(?<![\w.])[rR]"\([^]*?\)"|(?<![\w.])[rR]'\([^]*?\)'|` + STRM],
@@ -125,41 +125,77 @@
   const generic = c(['comment', S`//.*|/\*[^]*?\*/|(?<=^|\s)#.*|(?<=^|\s)--\s.*`]);
 
   const alias = {
-    javascript: 'js', mjs: 'js', ts: 'js', typescript: 'js', markdown: 'md', rmd: 'md',
-    qmd: 'md', yml: 'yaml', latex: 'tex', sh: 'bash', zsh: 'bash', xml: 'html', svg: 'html'
+    __proto__: null, javascript: 'js', mjs: 'js', ts: 'js', typescript: 'js', markdown: 'md',
+    rmd: 'md', qmd: 'md', yml: 'yaml', latex: 'tex', sh: 'bash', zsh: 'bash', xml: 'html', svg: 'html'
   };
+  // regex flags beyond 'gm'
+  const flags = {__proto__: null, sql: 'i'};
   // plain output, and languages with their own renderer
   const none = new Set(['', 'text', 'plain', 'txt', 'output', 'none', 'pele']);
+  const canon = l => (l = l.toLowerCase(), alias[l] || l);
 
+  // number of capture groups in a regex source
+  const groups = src => new RegExp(src + '|').exec('').length - 1;
+  // one regex per rule list, and the group index of each rule in it (the rules may have
+  // capture groups and backreferences of their own, which are renumbered)
   const cache = new Map();
+  const compile = (rules, fl) => {
+    let x = cache.get(rules);
+    if (!x) {
+      let n = 1;
+      const at = [], src = rules.map(r => {
+        const k = n, s = r[1].replace(/\\(\\|[1-9]\d*)/g, (m, d) => d === '\\' ? m : '\\' + (k + +d));
+        at.push(k); n += 1 + groups(r[1]);
+        return `(${s})`;
+      });
+      cache.set(rules, x = {at, re: new RegExp(src.join('|'), 'gm' + fl)});
+    }
+    return x;
+  };
+
   const hl = (code, lang = '') => {
-    lang = lang.toLowerCase();
-    lang = alias[lang] || lang;
+    lang = canon(lang);
     if (none.has(lang)) return esc(code);
-    const rules = langs[lang] || generic;
-    let re = cache.get(rules);
-    if (!re) cache.set(rules, re = new RegExp(
-      rules.map(r => `(${r[1]})`).join('|'), lang === 'sql' ? 'gmi' : 'gm'
-    ));
+    const rules = langs[lang] || generic, {re, at} = compile(rules, flags[lang] || '');
     let out = '', pos = 0, m;
     // lastIndex is reset every time, as a handler may use the regex again (md in md)
     for (; re.lastIndex = pos, m = re.exec(code);) {
       if (!m[0]) { out += esc(code.slice(pos, m.index + 1)); pos = m.index + 1; continue; }
-      let i = 1;
-      while (m[i] === undefined) i++;
-      const [cls, , fn] = rules[i - 1];
+      let i = 0;
+      while (m[at[i]] === undefined) i++;
+      const [cls, , fn] = rules[i];
       out += esc(code.slice(pos, m.index)) + (fn ? fn(m[0]) : span(cls, m[0]));
       pos = m.index + m[0].length;
     }
     return out + esc(code.slice(pos));
   };
 
-  const re = /(?:^|\s)lang(?:uage)?-([\w+-]+)/;
-  d.querySelectorAll('pre > code').forEach(code => {
+  const done = new WeakSet(), re = /(?:^|\s)lang(?:uage)?-([\w+-]+)/;
+  // highlight code blocks; with `only`, redo the blocks of that (just registered) language
+  const run = only => d.querySelectorAll('pre > code').forEach(code => {
     const m = re.exec(code.className + ' ' + code.parentElement.className);
-    // no language, or already highlighted
-    if (!m || code.querySelector('.token')) return;
+    if (!m) return;
+    // skip blocks done by us (or by another highlighter) before, and blocks of other languages
+    if (only ? !done.has(code) || canon(m[1]) !== only : done.has(code) || code.querySelector('.token')) return;
+    done.add(code);
     code.classList.add('language-' + m[1]);
     code.innerHTML = hl(code.textContent, m[1]);
   });
+
+  // extension API, so that more languages can come from separate scripts loaded after this
+  // one: PrismLite.register('foo', [[class, regex, fn?], ...], {alias: ['f'], flags: 'i'});
+  // regexes may have capture groups; `util` has the helpers used for the built-in languages
+  window.PrismLite = {
+    highlight: hl,
+    register(name, rules, {alias: al = [], flags: fl = ''} = {}) {
+      try { compile(rules, fl); } catch (e) { return console.warn('PrismLite:', name, e.message); }
+      langs[name] = rules; flags[name] = fl;
+      al.forEach(a => alias[a.toLowerCase()] = name);
+      run(name);
+    },
+    util: {S, esc, span, words, STR, STRM, NUM, COMMON, c, CC, HC, tag}
+  };
+
+  // wait for the scripts that register languages (they come after this one)
+  d.readyState === 'loading' ? d.addEventListener('DOMContentLoaded', () => run()) : run();
 })(document);
