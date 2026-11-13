@@ -164,6 +164,13 @@ a list item. This makes it possible to reference or locate a specific item on a
 page by a hash in the URL. If you hold `Alt` and click on an item, you will get
 the URL with the hash in the address bar of your browser.
 
+## prism-lite.js
+
+Minimal syntax highlighter for `<pre><code class="language-*">` blocks, emitting
+the `token` classes of `prism-xcode.css`. Built-in rules for R, JS, CSS, HTML,
+Markdown, YAML, TeX, Bash, JSON, SQL, and diff; other languages get generic
+highlighting (strings, numbers, operators, comments). Replaces prism.js.
+
 ## render-katex.js
 
 Simply run `renderMathInElement(document.body)` to render math expression using
