@@ -34,6 +34,7 @@ const samples = {
   json: '{"a": [1, 2.5e3, true, null], "b": "c"}',
   diff: '--- a\n+++ b\n@@ -1 +1 @@\n-old\n+new\n ctx',
   sql: "-- c\nSELECT u.id, count(*) AS n, 'it''s' FROM users u WHERE u.age >= 18 /* x */ AND x IS NULL;\nselect 1 from t where a in (1, 2)",
+  python: '@dec\ndef f(x: int = 0x1F, *, y=None) -> bool:  # c\n    return x if x else True',
   zzz: 'foo = "str" + 42 // c\nbar(1.5, x) # d'
 };
 
@@ -105,6 +106,26 @@ test('sql: keywords in any case, strings with doubled quotes, comments', async (
   // names such as u.id and `in (` are not calls or keywords by accident
   expect(t).not.toContain('function:in');
   expect(t).not.toContain('keyword:id');
+});
+
+test('python: keywords, decorators, calls, string prefixes, comments', async ({page}) => {
+  const t = await toks(page, 'py', 'import os\n@dec.x\ndef f(a=None): return print(f"{a!r}") # c');
+  expect(t).toContain('keyword:import');
+  expect(t).toContain('atrule:@dec.x');
+  expect(t).toContain('keyword:def');
+  expect(t).toContain('function:f');
+  expect(t).toContain('constant:None');
+  expect(t).toContain('function:print');
+  expect(t).toContain('comment:# c');
+  expect(t).toContain('string:f"');
+});
+
+test('python: f-string expressions are highlighted, braces doubled stay text', async ({page}) => {
+  const t = await toks(page, 'python', 'f"{x!r} {{lit}} {d[\'k\']}"');
+  expect(t).toContain('punctuation:{');
+  expect(t).toContain('punctuation:}');
+  expect(t).toContain('string:{{');
+  expect(t).not.toContain('string:{x!r}');
 });
 
 test('removed aliases fall back to generic highlighting', async ({page}) => {

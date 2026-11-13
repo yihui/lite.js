@@ -41,6 +41,12 @@
       (m[3] ? span('punctuation', m[3]) : '');
   };
 
+  // f-strings: {expressions} as Python, the rest as string ({{ and single { stay string)
+  const pystr = t => !/^[a-zA-Z]*[fF]/.test(t) ? span('string', t) :
+    t.replace(/\{\{|\{[^{}]*\}|\{|[^{]+/g, m => m.length > 2 && m[0] == '{' ?
+      span('punctuation', '{') + hl(m.slice(1, -1), 'python') + span('punctuation', '}') :
+      span('string', m));
+
   const langs = {
     r: c(HC,
       // raw strings r"(...)", then ordinary strings, which may span lines
@@ -58,6 +64,12 @@
       ['boolean', words('true false')],
       ['constant', words('null undefined NaN Infinity')],
       ['function', S`(?<![\w$])[A-Za-z_$][\w$]*(?=[ \t]*\()`]),
+    python: c(HC,
+      ['string', S`(?<![\w])[rRbBfFuU]{0,2}(?:"""[^]*?"""|'''[^]*?'''|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')`, pystr],
+      ['atrule', S`@[\w.]+`],
+      ['keyword', words('def class return if elif else for while in not and or is import from as with try except finally raise pass break continue lambda yield global nonlocal del assert async await')],
+      ['boolean', words('True False')], ['constant', words('None')],
+      ['function', S`(?<![\w.])[A-Za-z_]\w*(?=\()`]),
     json: [
       ['property', S`"(?:\\.|[^"\\\n])*"(?=\s*:)`], ['boolean', words('true false')],
       ['constant', words('null')], ['punctuation', S`[:,{}\[\]]`], ['string', STR], ['number', NUM]
@@ -126,7 +138,7 @@
 
   const alias = {
     javascript: 'js', mjs: 'js', ts: 'js', typescript: 'js', markdown: 'md', rmd: 'md',
-    qmd: 'md', yml: 'yaml', latex: 'tex', sh: 'bash', zsh: 'bash', xml: 'html', svg: 'html'
+    qmd: 'md', yml: 'yaml', latex: 'tex', sh: 'bash', zsh: 'bash', py: 'python', xml: 'html', svg: 'html'
   };
   // plain output, and languages with their own renderer
   const none = new Set(['', 'text', 'plain', 'txt', 'output', 'none', 'pele']);
