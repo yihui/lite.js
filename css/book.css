@@ -48,17 +48,33 @@ body {
   }
   h1 {
     margin: 1em auto 3em;
-    border-bottom: 1px solid;
     &:has(+ .epigraph) { margin-bottom: 2em; }
+    /* parts and normal chapter titles */
+    &:not(.part) {
+      border-bottom: 1px solid;
+      .section-number {
+        display: inline-block;
+        border-bottom: 4px solid;
+        margin-bottom: -4px;
+      }
+    }
+    &.part {
+      text-align: center;
+      text-transform: uppercase;
+      .section-number {
+        display: block;
+        &::before { content: "Part "; }
+      }
+    }
   }
 }
-h1 .section-number {
-  display: inline-block;
-  border-bottom: 4px solid;
-  margin-bottom: -4px;
-}
 article h2 { border-bottom-style: dashed; }
-/* TODO: style for h1.part and printing */
+/* part titles stand out in the TOC, separated from the items above */
+#TOC li:has(> a[href^="#prt:"]) {
+  font-weight: bold;
+  &:not(:first-child) { margin-top: 1em; }
+}
+.cross-ref-prt::before { content: "Part "; }
 
 .pagesjs .pagesjs-page.page-front:first-child {
   padding: 0;

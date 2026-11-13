@@ -147,11 +147,12 @@
       /* (article.css caps the content at the viewport, which differs between screen and print) */
       & * { max-width: calc(var(--paper-width) - 4em); }
     }
-    /* the page of a float that takes the whole page (the class is set by pages.js): center it */
-    &.page-float .pagesjs-body {
+    /* center the content of a page vertically: the page of a float that takes the whole
+       page, or of a part title (the classes are set by pages.js) */
+    &:is(.page-float, .page-center) .pagesjs-body {
       display: flex;
       flex-direction: column;
-      justify-content: safe center;  /* (a float taller than the page starts at the top) */
+      justify-content: safe center;  /* (content taller than the page starts at the top) */
     }
     .footnotes {
       margin-top: 1.5em;

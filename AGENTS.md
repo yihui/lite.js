@@ -4,6 +4,8 @@ Small browser scripts and stylesheets in `js/` and `css/`, published as `@xiee/u
 
 ## Tests
 
+**Don't run the tests locally** (a shared machine with a low thread limit crashes under parallel browsers): write them, commit, and let GitHub Actions run them (`./release.sh` waits for `test.yml`). The commands below are for machines where running them is OK.
+
 Playwright tests in `tests/` load HTML fixtures in headless Chromium (jsdom is no use: the scripts need real layout and a real browser).
 
 ```sh

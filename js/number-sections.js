@@ -19,7 +19,13 @@
     });
     return;
   }
-  let t0 = 0, t1, dict = [0, 0, 0, 0, 0, 0];
+  let t0 = 0, t1, dict = [0, 0, 0, 0, 0, 0], n_part = 0;
+  // part numbers in Roman numerals
+  const roman = n => {
+    let s = '';
+    [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']].forEach(([v, r]) => { for (; n >= v; n -= v) s += r; });
+    return s;
+  };
   // generate section numbers x.x.x
   function number_section(i) {
     dict[i]++;
@@ -27,6 +33,12 @@
     return `<span class="section-number">${n}</span> `;
   };
   hs.forEach(h => {
+    // parts have their own numbers and don't affect chapters
+    if (h.classList.contains('part')) {
+      if (!h.classList.contains('unnumbered'))
+        h.insertAdjacentHTML('afterbegin', `<span class="section-number">${roman(++n_part)}</span> `);
+      return;
+    }
     // header level: <hN> -> N
     t1 = parseInt(h.tagName.replace(/^h/i, ''));
     // when moving to a higher-level heading, reset lower-level counters to 0

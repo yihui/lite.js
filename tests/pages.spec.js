@@ -235,6 +235,23 @@ test('the first page is marked if it has the frontmatter', async ({page}) => {
   expect(await header(0)).not.toBe('none');
 });
 
+// In a book, every <h1> (a chapter or a part) starts a page, even when several of them are in the
+// same chapter element and all fit on one page. The page of a part title is centered vertically.
+test('chapters and parts in one element start new pages', async ({page}) => {
+  const book = `<link rel="stylesheet" href="${new URL('../css/book.css', import.meta.url).href}">`;
+  const body = `<main><article class="chapter"><h1 class="part">Foundations</h1><p>Intro to the part.</p>
+<h1>One</h1><p>Chapter one.</p><h1>Two</h1><p>Chapter two.</p></article></main>`;
+  const r = await paginate(page, fixture('parts', body, '', book));
+  expect(r.pages.map(p => p.text)).toEqual(['FoundationsIntrotothepart.', 'OneChapterone.', 'TwoChaptertwo.']);
+  const centered = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-page')].map(p => ({
+    cls: p.classList.contains('page-center'),
+    top: p.querySelector('.pagesjs-body > *').getBoundingClientRect().top - p.getBoundingClientRect().top
+  })));
+  expect(centered.map(c => c.cls)).toEqual([true, false, false]);
+  // the part title is far from the top of its page
+  expect(centered[0].top).toBeGreaterThan(centered[1].top + 100);
+});
+
 // A float (captioned figure, or an element with the class "pagesjs-float") that does not fit waits
 // for the next page, where it comes first, and the text after it fills the page.
 test('floats wait for the next page and the text fills the gap', async ({page}) => {

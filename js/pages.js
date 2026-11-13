@@ -237,6 +237,11 @@
 
   // --- Putting elements on pages -------------------------------------
 
+  // does el start a chapter or part (it is, or contains, an <h1>)?
+  function hasH1(el) { return el.matches('h1') || !!$('h1', el); }
+  // does el hold several chapters/parts (in a book, each starts a page)?
+  function manyH1(el) { return book && el.querySelectorAll('h1').length > 1; }
+
   function* fill(el, more = true) {
     // a page element is used as the box
     if (has(el, 'pagesjs-page')) {
@@ -246,7 +251,7 @@
         nextPage()
       ));
     } else {
-      if (book && box.innerText !== '' && $('h1', el)) flush(), nextPage();
+      if (book && box.innerText !== '' && hasH1(el)) flush(), nextPage();
       if (el.innerText.trim() && (taken() || (syncNotes(), H - box.scrollHeight < H_min))) nextPage();
       yield* place(el, more);
     }
@@ -263,7 +268,7 @@
       if (!big) {
         c.append(el);
         if (isFloat(el) && !stays(el, c)) return;
-        if (!overflows()) return;
+        if (!overflows() && !manyH1(el)) return;
       }
       el = split(el, c, big ? 'block' : undefined, more);
       if (!el) return;
@@ -444,7 +449,7 @@
       if (c.nodeType === 1) {
         const y1 = probeY.get(c);
         if (!(y1 >= y) || c.matches(`.${fr_cls}, .pagesjs-page`) || isFloat(c) || isBigBlock(c) || $('.pagesjs-note', c) ||
-          used + y1 - y0 + H_line > H || root && (used + y - y0 + 2 * H_min > H || book && $('h1', c))) break;
+          used + y1 - y0 + H_line > H || book && c.matches('h1') || root && (used + y - y0 + 2 * H_min > H || book && hasH1(c))) break;
         y = y1;
       }
       run.push(c);
@@ -462,6 +467,8 @@
     let item, partial;
     while (item = el.firstChild) {
       if (item.nodeType !== 1) { head.append(item); continue; }
+      // in a book, an <h1> (a chapter or part) that follows other content starts a new page
+      if (book && item.matches('h1') && head.innerText.trim()) { partial = true; break; }
       endFrag(item);
       const big = isBigBlock(item);
       if (!big) {
@@ -742,6 +749,7 @@
       if (book) {
         if ($('.pagesjs-front', box)) return;  // skip the frontmatter page
         $(ps, box) && (page_title = '');  // empty title for the first page of a chapter
+        $('h1.part', box) && addCls(box, 'page-center');  // a part title (and intro) page
       }
       const N = +box.dataset.pagesOffset || 1;
       if (N > 1) addCls(box, 'page-multiple');
