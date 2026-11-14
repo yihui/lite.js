@@ -1,4 +1,5 @@
 import {test, expect} from '@playwright/test';
+import fs from 'node:fs';
 import path from 'node:path';
 import {fixture, paginate} from './helper.js';
 
@@ -610,4 +611,34 @@ test('pagesjs-wide takes a landscape page', async ({page}) => {
     expect(s.footer).toBe(true);
   }
   expect(narrow.n).toBe(wideWin.n);
+});
+
+// Lazy images/iframes off screen are not loaded, so they would be blank or have the wrong
+// size when paginated or printed.
+const lazyPage = (name) => {
+  const url = fixture(name, `<main>${para(3)}<div style="height: 5000px"></div>
+<img id="im" loading="lazy" src="i.svg" width="50" height="50" alt="">
+<iframe loading="lazy" src="about:blank"></iframe>${para(3)}</main>`);
+  fs.writeFileSync(path.join(path.dirname(url.replace('file://', '')), 'i.svg'),
+    '<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50"/>');
+  return url;
+};
+const lazyState = (page) => page.evaluate(() => ({
+  lazy: document.querySelectorAll('[loading=lazy]').length,
+  loaded: [...document.images].every(i => i.complete && i.naturalWidth > 0)
+}));
+
+test('lazy images and iframes are loaded before paginating', async ({page}) => {
+  const url = lazyPage('lazy-paginate');
+  await page.goto(url);
+  expect(await lazyState(page)).toEqual({lazy: 2, loaded: false});
+  await paginate(page, url);
+  expect(await lazyState(page)).toEqual({lazy: 0, loaded: true});
+});
+
+test('lazy images and iframes are loaded before printing an unpaginated page', async ({page}) => {
+  await page.goto(lazyPage('lazy-print'));
+  await page.evaluate(() => dispatchEvent(new Event('beforeprint')));
+  await page.waitForFunction(() => [...document.images].every(i => i.complete));
+  expect((await lazyState(page)).lazy).toBe(0);
 });

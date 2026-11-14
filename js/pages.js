@@ -38,6 +38,15 @@
   function range() { return d.createRange(); }
   function on(type, fn) { addEventListener(type, fn); }
   function fire(type) { dispatchEvent(new Event(type)); }
+  // Lazy images/iframes off screen are not loaded yet, so they would be blank (or have the
+  // wrong size) when paginated or printed. Make them eager; the promise waits for the images.
+  function loadLazy() {
+    const els = [...$$('[loading=lazy]')];
+    els.forEach(el => el.loading = 'eager');
+    return Promise.all(els.map(el => el.complete !== false ? 0 : new Promise(go => {
+      el.addEventListener('load', go); el.addEventListener('error', go);
+    })));
+  }
 
   // --- Constants and state -------------------------------------------
 
@@ -957,7 +966,7 @@
         .then(() => advance());
     }
   }
-  function paginate(sync) {
+  function paginate(sync, loaded) {
     // nobody sees the progress in a headless browser (and printing has to be sync)
     const quiet = sync || /Headless/.test(navigator.userAgent) || navigator.webdriver;
     // all resources must be loaded before paginating
@@ -965,6 +974,8 @@
 
     const cls = d.body.classList;
     if (cls.contains('pagesjs')) return;  // already paginated
+    // (printing is sync: it cannot wait, so the images may still be loading)
+    if (!sync && !loaded) return loadLazy().then(() => paginate(sync, true));
     fire('pagesjs:before');
     const t0 = performance.now();
 
@@ -1014,6 +1025,7 @@
     sync ? pending(true) : probe(roots, els).then(() => pending?.());
   }
   on('beforeprint', () => {
+    loadLazy();  // also for an unpaginated page
     if (pending) pending(true);
     else if (running) while (!running.next().done);  // finish the pagination in progress
     else paginate(true);
