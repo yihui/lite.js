@@ -930,9 +930,22 @@
       return ch;
     });
   }
+  // Empty page markers inside chapters must reach fill(), not become nested paper boxes.
+  function liftPageBreaks(roots) {
+    roots.forEach(root => $$('.pagesjs-page', root).forEach(page => {
+      if (!blank(page) || page.parentElement.closest('.pagesjs-page')) return;
+      while (page.parentNode !== root) {
+        const parent = page.parentNode, rest = parent.cloneNode();
+        while (page.nextSibling) rest.append(page.nextSibling);
+        parent.after(page);
+        blank(rest) || page.after(rest);
+        blank(parent) && parent.remove();
+      }
+    }));
+  }
   // iteratively add elements to pages
-  function* fillPages(roots, els) {
-    for (const el of $$('.pagesjs-front, .abstract, #TOC:not(.chapter-toc)')) {
+  function* fillPages(roots, els, front) {
+    for (const el of front) {
       // (class on the page, since :has() would be re-checked on every change)
       has(el, 'pagesjs-front') && box === boxes[0] && addCls(box, 'page-front');
       yield* fill(el);
@@ -1003,9 +1016,12 @@
     addTocLeaders();
 
     detachNotes();
-    const roots = findRoots(), els = detachContent(roots);
+    const roots = findRoots(), front = [...$$('.pagesjs-front, .abstract, #TOC:not(.chapter-toc)')];
+    front.forEach(el => el.remove());
+    liftPageBreaks(roots);
+    const els = detachContent(roots);
     function* run() {
-      yield* fillPages(roots, els);
+      yield* fillPages(roots, els, front);
       cls.remove('pagesjs-filling');
       d.body.prepend(...boxes);  // unhide all pages
       checkOffsets();
