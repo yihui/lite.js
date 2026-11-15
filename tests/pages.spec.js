@@ -253,6 +253,46 @@ test('chapters and parts in one element start new pages', async ({page}) => {
   expect(centered[0].top).toBeGreaterThan(centered[1].top + 100);
 });
 
+test('a global TOC inside the root ends before an h2 summary', async ({page}) => {
+  const toc = '<nav id="TOC"><ul><li><a href="#summary">Summary</a></li><li><a href="#one">One</a></li></ul></nav>';
+  for (const nested of [false, true]) {
+    const content = `${toc}<article><h2 id="summary">Summary</h2><p>Overview.</p></article>
+<article><h1 id="one">One</h1><p>Chapter one.</p></article><article><h1>Two</h1><p>Chapter two.</p></article>`;
+    const r = await paginate(page, fixture('toc-summary-' + nested, `<main>${nested ? `<section>${content}</section><p>End.</p>` : content}</main>`));
+    expect(r.pages.map(p => p.text).join('')).toBe(r.before);
+    expect(r.pages.every(p => p.text && p.overflow <= 5)).toBe(true);
+    expect(r.bad).toEqual([]);
+    const separate = await page.evaluate(() =>
+      document.querySelector('#TOC').closest('.pagesjs-page') !== document.getElementById('summary').closest('.pagesjs-page'));
+    expect(separate).toBe(true);
+    expect(await page.locator('#TOC:not(.chapter-toc)').count()).toBe(1);
+  }
+});
+
+test('page markers inside chapters start pages without clipping content', async ({page}) => {
+  for (const [nested, mark] of [[false, ''], [true, ''], [false, '<p>Marker text.</p>'], [true, '<p>Marker text.</p>']]) {
+    const chapter = `<h1>One</h1><div class="chapter-toc" id="toc">Chapter contents</div>
+<div class="pagesjs-page">${mark}</div><h2 id="body">Body</h2>${para(20)}`;
+    const body = `<main><article class="chapter">${nested ? `<section>${chapter}</section>` : chapter}</article>
+<article class="chapter"><h1>Two</h1><p>Chapter two.</p></article></main>`;
+    const r = await paginate(page, fixture(`chapter-marker-${nested}-${mark.length}`, body));
+    expect(r.pages.map(p => p.text).join('')).toBe(r.before);
+    expect(r.pages.every(p => p.text && p.overflow <= 5)).toBe(true);
+    expect(r.bad).toEqual([]);
+    expect(await page.locator('.pagesjs-page .pagesjs-page').count()).toBe(0);
+    const content = await page.evaluate(() => {
+      const toc = document.getElementById('toc'), body = document.getElementById('body');
+      const box = body.closest('.pagesjs-page'), pages = [...document.querySelectorAll('.pagesjs-page')];
+      return {before: pages.indexOf(toc.closest('.pagesjs-page')), after: pages.indexOf(box),
+        chapter: !!body.closest('article.chapter'), visible: body.getBoundingClientRect().bottom <= box.getBoundingClientRect().bottom};
+    });
+    // (a marker with text is a page of its own, between the TOC page and the body)
+    expect(content.after).toBe(content.before + (mark ? 2 : 1));
+    expect(content.chapter).toBe(true);
+    expect(content.visible).toBe(true);
+  }
+});
+
 // A float (captioned figure, or an element with the class "pagesjs-float") that does not fit waits
 // for the next page, where it comes first, and the text after it fills the page.
 test('floats wait for the next page and the text fills the gap', async ({page}) => {
