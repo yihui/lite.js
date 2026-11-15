@@ -930,10 +930,11 @@
       return ch;
     });
   }
-  // Empty page markers inside chapters must reach fill(), not become nested paper boxes.
+  // Page elements deeper than the children of a root are never seen by fill(), and would become
+  // nested paper boxes: lift them to the root.
   function liftPageBreaks(roots) {
     roots.forEach(root => $$('.pagesjs-page', root).forEach(page => {
-      if (!blank(page) || page.parentElement.closest('.pagesjs-page')) return;
+      if (page.parentElement.closest('.pagesjs-page')) return;
       // (split each ancestor after the marker, and move the marker out between the halves)
       for (let parent; (parent = page.parentNode) !== root;) {
         const rest = parent.cloneNode();

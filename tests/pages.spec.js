@@ -269,13 +269,13 @@ test('a global TOC inside the root ends before an h2 summary', async ({page}) =>
   }
 });
 
-test('empty page markers inside chapters start pages without clipping content', async ({page}) => {
-  for (const nested of [false, true]) {
+test('page markers inside chapters start pages without clipping content', async ({page}) => {
+  for (const [nested, mark] of [[false, ''], [true, ''], [false, '<p>Marker text.</p>'], [true, '<p>Marker text.</p>']]) {
     const chapter = `<h1>One</h1><div class="chapter-toc" id="toc">Chapter contents</div>
-<div class="pagesjs-page"></div><h2 id="body">Body</h2>${para(20)}`;
+<div class="pagesjs-page">${mark}</div><h2 id="body">Body</h2>${para(20)}`;
     const body = `<main><article class="chapter">${nested ? `<section>${chapter}</section>` : chapter}</article>
 <article class="chapter"><h1>Two</h1><p>Chapter two.</p></article></main>`;
-    const r = await paginate(page, fixture('chapter-marker-' + nested, body));
+    const r = await paginate(page, fixture(`chapter-marker-${nested}-${mark.length}`, body));
     expect(r.pages.map(p => p.text).join('')).toBe(r.before);
     expect(r.pages.every(p => p.text && p.overflow <= 5)).toBe(true);
     expect(r.bad).toEqual([]);
