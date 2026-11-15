@@ -934,11 +934,12 @@
   function liftPageBreaks(roots) {
     roots.forEach(root => $$('.pagesjs-page', root).forEach(page => {
       if (!blank(page) || page.parentElement.closest('.pagesjs-page')) return;
-      while (page.parentNode !== root) {
-        const parent = page.parentNode, rest = parent.cloneNode();
-        while (page.nextSibling) rest.append(page.nextSibling);
-        parent.after(page);
-        blank(rest) || page.after(rest);
+      // (split each ancestor after the marker, and move the marker out between the halves)
+      for (let parent; (parent = page.parentNode) !== root;) {
+        const rest = parent.cloneNode();
+        for (let n; (n = page.nextSibling);) rest.append(n);
+        parent.after(page, rest);
+        blank(rest) && rest.remove();
         blank(parent) && parent.remove();
       }
     }));
