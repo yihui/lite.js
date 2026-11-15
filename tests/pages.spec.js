@@ -286,7 +286,8 @@ test('page markers inside chapters start pages without clipping content', async 
       return {before: pages.indexOf(toc.closest('.pagesjs-page')), after: pages.indexOf(box),
         chapter: !!body.closest('article.chapter'), visible: body.getBoundingClientRect().bottom <= box.getBoundingClientRect().bottom};
     });
-    expect(content.after).toBe(content.before + 1);
+    // (a marker with text is a page of its own, between the TOC page and the body)
+    expect(content.after).toBe(content.before + (mark ? 2 : 1));
     expect(content.chapter).toBe(true);
     expect(content.visible).toBe(true);
   }
