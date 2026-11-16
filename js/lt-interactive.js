@@ -1474,7 +1474,7 @@
         // Plain-language conditions become one expression (`(x > 5) && (x < 9)`);
         // anything else stays as typed
         onType(box, v => {
-          const t = Q.parse(v, {}, col), e = Q.expr(t);
+          const t = Q.parse(v, {}, col), e = Q.expr(t, col);
           note.textContent = e && Q.parsed(t) ? Q.text(t, () => null) : "";
           setTerm(e ?? v.trim(), boxEd);
         });
@@ -1555,6 +1555,10 @@
   // Enhance an opted-in table (idempotent via dataset flag).
   const onMount = (el, spec) => {
     if (!spec?.interactive || el.dataset.ltiOn) return;
+    // A download button needs lt-export.js, which a page that deduped this
+    // script from an earlier table may load later: wait for all scripts.
+    if (spec.interactive.download && !LT.plugins.export && document.readyState !== "complete")
+      return addEventListener("load", () => onMount(el, spec), { once: true });
     el.dataset.ltiOn = "1";
     enhance(el, spec);
   };
