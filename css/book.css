@@ -26,9 +26,6 @@ body {
   .author h2 {
     letter-spacing: .08em;
   }
-  .date h3 {
-    color: var(--rule-color);
-  }
 }
 @media (min-width: 79.002em) {
   body:not(.pagesjs) .chapter-toc {

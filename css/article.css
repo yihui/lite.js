@@ -16,6 +16,7 @@ article:not(.pagesjs *), .frontmatter, .fullwidth, .embed-left, .embed-right {
   box-shadow: 0 0 4px #ccc;
   background: var(--article-bg);
 }
+.frontmatter { margin-top: auto; }
 .side { font-size: .85em; }
 #TOC { top: 0; }
 .bg-number {
