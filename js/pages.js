@@ -260,7 +260,7 @@
         nextPage()
       ));
     } else {
-      if (book && box.innerText !== '' && hasH1(el)) flush(), nextPage();
+      if (book && box.innerText !== '' && hasH1(el) && !has(el, 'pagesjs-joined')) flush(), nextPage();
       if (el.innerText.trim() && (taken() || (syncNotes(), H - box.scrollHeight < H_min))) nextPage();
       yield* place(el, more);
     }
@@ -477,7 +477,7 @@
     while (item = el.firstChild) {
       if (item.nodeType !== 1) { head.append(item); continue; }
       // in a book, an <h1> (a chapter or part) that follows other content starts a new page
-      if (book && item.matches('h1') && head.innerText.trim()) { partial = true; break; }
+      if (book && item.matches('h1:not(.pagesjs-joined)') && head.innerText.trim()) { partial = true; break; }
       endFrag(item);
       const big = isBigBlock(item);
       if (!big) {
@@ -1018,6 +1018,8 @@
     addTocLeaders();
 
     detachNotes();
+    // an <h1> right after h1.appendix shares its page
+    $$('h1.appendix + h1').forEach(h => addCls(h, 'pagesjs-joined'));
     const roots = findRoots(), front = [...$$('.pagesjs-front, .abstract, #TOC:not(.chapter-toc)')];
     front.forEach(el => el.remove());
     liftPageBreaks(roots);

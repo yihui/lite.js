@@ -253,6 +253,19 @@ test('chapters and parts in one element start new pages', async ({page}) => {
   expect(centered[0].top).toBeGreaterThan(centered[1].top + 100);
 });
 
+// An `h1.appendix` is a divider: the next <h1> follows it on the same page (a sibling).
+test('an h1 right after h1.appendix does not start a new page', async ({page}) => {
+  const book = `<link rel="stylesheet" href="${new URL('../css/book.css', import.meta.url).href}">`;
+  const bodies = {
+    flat: `<main><h1>One</h1><p>Chapter one.</p><h1 class="appendix">Appendix</h1><h1>A</h1><p>Chapter A.</p><h1>B</h1><p>Chapter B.</p></main>`,
+    nested: `<main><article><h1>One</h1><p>Chapter one.</p><h1 class="appendix">Appendix</h1><h1>A</h1><p>Chapter A.</p><h1>B</h1><p>Chapter B.</p></article></main>`
+  };
+  for (const [k, body] of Object.entries(bodies)) {
+    const r = await paginate(page, fixture('appendix-' + k, body, '', book));
+    expect(r.pages.map(p => p.text), k).toEqual(['OneChapterone.', 'AppendixAChapterA.', 'BChapterB.']);
+  }
+});
+
 test('a global TOC inside the root ends before an h2 summary', async ({page}) => {
   const toc = '<nav id="TOC"><ul><li><a href="#summary">Summary</a></li><li><a href="#one">One</a></li></ul></nav>';
   for (const nested of [false, true]) {
