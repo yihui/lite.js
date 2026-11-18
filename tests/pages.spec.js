@@ -104,6 +104,21 @@ test('native table caption stays with the first rows', async ({page}) => {
   pages.forEach(p => expect(p.text.includes('CAPTION'), p.text.slice(0, 60)).toBe(p.text.includes('a0b0')));
 });
 
+test('fragments of a class-less table keep the default table style, classed ones do not', async ({page}) => {
+  const root = path.resolve(import.meta.dirname, '..');
+  const head = `<link rel="stylesheet" href="file://${root}/css/default.css">`;
+  const rows = Array.from({length: 200}, (_, i) => `<tr><td>a${i}</td></tr>`).join('');
+  for (const [attr, styled] of [['', true], [' class="foo"', false]]) {
+    const body = `<main><table${attr}><thead><tr><th>A</th></tr></thead><tbody>${rows}</tbody></table></main>`;
+    const r = await paginate(page, fixture('table-plain-' + styled, body, '', head));
+    expect(r.bad).toEqual([]);
+    const widths = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-body table.pagesjs-fragmented')]
+      .map(t => getComputedStyle(t.querySelector('th')).borderBottomWidth));
+    expect(widths.length, attr).toBeGreaterThan(1);
+    expect(widths.every(w => w === (styled ? '1px' : '0px')), `${attr}: ${widths}`).toBe(true);
+  }
+});
+
 test('a broken paragraph that is put back is one element again', async ({page}) => {
   // two lines are split between the pages, but the one line left on the page is moved back
   const pages = await firstPages(page, 'fill-rejoin', '<ul><li><p>line one<br>line two</p></li><li><p>next item</p></li></ul>', () => range(20, 140, 2));

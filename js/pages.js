@@ -644,6 +644,9 @@
   }
   // split table rows
   function splitTable(el, container, prev, first) {
+    // pieces of a class-less table get pagesjs-plain, so default.css styles them too (the
+    // clone for the head copies it)
+    el.hasAttribute('class') || addCls(el, 'pagesjs-plain');
     const head = cut(el, container, first), tb = el.tBodies[0], tb2 = tb.cloneNode(),
       undo = [], rows = [...tb.rows], n = rows.length, min = prev ? 0 : 1;
     // the caption (not broken) goes with the first rows, unless it is below the table
