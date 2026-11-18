@@ -923,12 +923,20 @@
     });
   }
   // take the children of the roots out of the DOM (to speed up rendering single pages), and return them
+  let scopeId = 0;
   function detachContent(roots) {
     return roots.map(el => {
-      // move <style>/<link> into <head>, so styles apply globally, however deep they are; but keep
-      // a <style> with @scope, which applies to its parent element
-      $$('style, link[rel="stylesheet"]', el).forEach(el => {
-        if (!/@scope\b/.test(el.textContent)) d.head.append(el);
+      // move <style>/<link> into <head>, so styles apply globally, however deep they are
+      $$('style, link[rel="stylesheet"]', el).forEach(st => {
+        // @scope without a root applies to the parent, which may be split into clones: mark the
+        // parent (clones copy attributes) and give the rule that root explicitly
+        const p = st.parentElement, k = 'data-pagesjs-scope';
+        if (st.tagName === 'STYLE') st.textContent = st.textContent.replace(
+          /@scope(\s+to\b|\s*\{)/g, (_, t) => {
+            if (!p.hasAttribute(k)) p.setAttribute(k, scopeId++);
+            return `@scope ([${k}="${p.getAttribute(k)}"])${t}`;
+          });
+        d.head.append(st);
       });
       const ch = kids(el).filter(el => ![box, hold, progress].includes(el) &&
         !['SCRIPT', 'NOSCRIPT', 'TEMPLATE'].includes(el.tagName));

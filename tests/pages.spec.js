@@ -732,15 +732,16 @@ test('lazy images and iframes are loaded before printing an unpaginated page', a
   expect((await lazyState(page)).lazy).toBe(0);
 });
 
-test('a <style> with @scope is not moved to <head>', async ({page}) => {
-  const body = `<main><div class="box"><style>@scope { p { color: rgb(255, 0, 0) } }</style><p>scoped</p></div>
-<p id="out">outside</p><style>#out { color: rgb(0, 0, 255) }</style>${para(10)}</main>`;
+test('@scope style keeps applying to all pieces of a split parent', async ({page}) => {
+  const body = `<main><div class="box"><style>@scope { p { color: rgb(255, 0, 0) } }</style>${para(40)}</div>
+<p id="out">outside</p><style>#out { color: rgb(0, 0, 255) }</style></main>`;
   await paginate(page, fixture('scoped-style', body));
   const r = await page.evaluate(() => ({
-    inBox: !!document.querySelector('.box > style'),
-    scoped: getComputedStyle(document.querySelector('.box p')).color,
-    outside: getComputedStyle(document.querySelector('#out')).color,
-    plainInHead: [...document.head.querySelectorAll('style')].some(s => s.textContent.includes('#out'))
+    pieces: document.querySelectorAll('.pagesjs-body .box').length,
+    colors: [...new Set([...document.querySelectorAll('.box p')].map(p => getComputedStyle(p).color))],
+    outside: getComputedStyle(document.querySelector('#out')).color
   }));
-  expect(r).toEqual({inBox: true, scoped: 'rgb(255, 0, 0)', outside: 'rgb(0, 0, 255)', plainInHead: true});
+  expect(r.pieces).toBeGreaterThan(1);
+  expect(r.colors).toEqual(['rgb(255, 0, 0)']);
+  expect(r.outside).toBe('rgb(0, 0, 255)');
 });
