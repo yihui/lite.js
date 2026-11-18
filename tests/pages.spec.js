@@ -733,14 +733,16 @@ test('lazy images and iframes are loaded before printing an unpaginated page', a
 });
 
 test('@scope style keeps applying to all pieces of a split parent', async ({page}) => {
-  const body = `<main><div class="box"><style>@scope { p { color: rgb(255, 0, 0) } }</style>${para(40)}</div>
+  const body = `<main><div class="box"><style>@scope { :scope { background-color: rgb(1, 2, 3) } p { color: rgb(255, 0, 0) } }</style>${para(40)}</div>
 <p id="out">outside</p><style>#out { color: rgb(0, 0, 255) }</style></main>`;
   await paginate(page, fixture('scoped-style', body));
   const r = await page.evaluate(() => ({
     pieces: document.querySelectorAll('.pagesjs-body .box').length,
     colors: [...new Set([...document.querySelectorAll('.box p')].map(p => getComputedStyle(p).color))],
+    bgs: [...new Set([...document.querySelectorAll('.box')].map(b => getComputedStyle(b).backgroundColor))],
     outside: getComputedStyle(document.querySelector('#out')).color
   }));
+  expect(r.bgs).toEqual(['rgb(1, 2, 3)']);
   expect(r.pieces).toBeGreaterThan(1);
   expect(r.colors).toEqual(['rgb(255, 0, 0)']);
   expect(r.outside).toBe('rgb(0, 0, 255)');
