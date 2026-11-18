@@ -605,6 +605,14 @@ test('a collapsed TOC button opens a clone of the TOC', async ({page}) => {
   await expect(panel).toBeHidden();
 });
 
+test('the TOC button clones the whole TOC of a multipage TOC', async ({page}) => {
+  const n = 120, items = Array.from({length: n}, (_, i) => `<li><a href="#s${i}">S${i}</a></li>`).join('');
+  const heads = Array.from({length: n}, (_, i) => `<h2 id="s${i}">S${i}</h2><p>x</p>`).join('');
+  await page.goto(fixture('tocmulti', `<main><nav id="TOC"><ul>${items}</ul></nav>${heads}</main>`) + '?paged=1');
+  await page.locator('.pagesjs-tools > a:not(.pagesjs-tool-print)').first().click();
+  expect(await page.locator('.pagesjs-panel a[href^="#s"]').count()).toBe(n);
+});
+
 test('a print button paginates; Back returns to the unpaginated view', async ({page}) => {
   const url = fixture('toggle', `<main>${para(20)}</main>`);
   await page.goto(url);

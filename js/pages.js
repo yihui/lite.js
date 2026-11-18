@@ -783,8 +783,9 @@
   }
 
   // page numbers of the TOC entries, in data-page-number
+  let toc_nav;  // clone of the TOC for the tools, made before the TOC is split across pages
   function numberToc() {
-    $$('#TOC a[href^="#"]').forEach(a => {
+    [...$$('#TOC a[href^="#"]'), ...(toc_nav ? $$('a[href^="#"]', toc_nav) : [])].forEach(a => {
       const p = d.getElementById(a.getAttribute('href').slice(1))?.closest('.pagesjs-page');
       a.dataset.pageNumber = p?.children[0].dataset.pageNumber ?? '';
     });
@@ -823,7 +824,7 @@
   // so readers can get it any time), and the problems, if any, to click through. Last, a
   // button to print the paginated pages.
   function addTools() {
-    const tools = make('div', 'pagesjs-tools'), toc = $('#TOC:not(.chapter-toc)'), bad = problems();
+    const tools = make('div', 'pagesjs-tools'), bad = problems();
     const closeAll = () => {
       $$('.pagesjs-panel', tools).forEach(p => p.hidden = true);
       unhit();
@@ -835,11 +836,7 @@
       tools.append(btn, panel);
       return panel;
     }
-    if (toc) {
-      const nav = toc.cloneNode(true);
-      nav.removeAttribute('id'); nav.className = '';  // (not the TOC of the document, nor in the margin)
-      add('☰', 'Contents', nav);
-    }
+    if (toc_nav) add('☰', 'Contents', toc_nav);
     if (bad.length) {
       const ul = make('ul', 'pagesjs-problems');
       bad.forEach(([el, msg]) => {
@@ -1022,6 +1019,9 @@
     cls.add('pagesjs-filling');
     measureMinHeight();
     addTocLeaders();
+    const toc = $('#TOC:not(.chapter-toc)');
+    toc_nav = toc?.cloneNode(true);
+    if (toc_nav) { toc_nav.removeAttribute('id'); toc_nav.className = ''; }  // (not the TOC of the document, nor in the margin)
 
     detachNotes();
     // an <h1> right after h1.appendix shares its page
