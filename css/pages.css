@@ -131,7 +131,6 @@
       &:not(.fragment-last) {
         border-bottom: none;
         margin-bottom: 0;
-        & > tfoot { opacity: .5; }
       }
     }
     /* a list item continued from the previous page has no marker */

@@ -630,7 +630,7 @@
     while (i > min && excess() > 0) show(--i);
     return Math.max(i, min);
   }
-  // A copy of a repeated table header/footer. Its notes appear once, on the first page: the
+  // A copy of a repeated table header. Its notes appear once, on the first page: the
   // first copy takes the markers of the original, so later copies have none. undo puts the
   // markers back (if the copy is discarded).
   function cloneHold(el, undo) {
@@ -653,8 +653,8 @@
     const cap = el.caption && style(el.caption).captionSide !== 'bottom' ? el.caption : null;
     function clear() { cap && el.prepend(cap); head.innerHTML = ''; undo.reverse().forEach(f => f()); }
     cap && head.append(cap);
-    // copy the table header and footer (the header goes first, as in the original)
-    [el.tHead, tb2, el.tFoot].forEach(t => t && head.append(t === tb2 ? t : cloneHold(t, undo)));
+    // copy the table header (the footer, e.g. totals, goes only with the last piece)
+    [el.tHead, tb2].forEach(t => t && head.append(t === tb2 ? t : cloneHold(t, undo)));
     tb2.append(...rows);
     fitCount(n, j => rect(rows[j]).bottom, min, k => tb.prepend(...rows.slice(k)));
     // clear the clone if the current page can't fit even one row
@@ -665,7 +665,10 @@
       tb.prepend(tb2.rows[m - 1]);
       if (m === 1) clear();
     }
-    return [head, tb.rows.length ? el : null];
+    if (tb.rows.length) return [head, el];
+    // the last piece takes the footer, which stays in el until now
+    el.tFoot && head.append(el.tFoot);
+    return [head, null];
   }
   // split lines in <code>, moving as many lines into the clone as possible
   function splitCode(el, container, prev, first) {

@@ -119,6 +119,19 @@ test('fragments of a class-less table keep the default table style, classed ones
   }
 });
 
+// the header repeats on each piece, the footer (totals) only on the last one
+test('table footer is only on the last piece', async ({page}) => {
+  const rows = Array.from({length: 200}, (_, i) => `<tr><td>a${i}</td></tr>`).join('');
+  const body = `<main><table><thead><tr><th>A</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>TOTAL</td></tr></tfoot></table></main>`;
+  const r = await paginate(page, fixture('table-foot-last', body));
+  expect(r.bad).toEqual([]);
+  const pieces = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-body table.pagesjs-fragmented')]
+    .map(t => ({head: !!t.tHead, foot: !!t.tFoot})));
+  expect(pieces.length).toBeGreaterThan(1);
+  expect(pieces.every(p => p.head)).toBe(true);
+  expect(pieces.map(p => p.foot)).toEqual([...pieces.slice(0, -1).map(() => false), true]);
+});
+
 test('a broken paragraph that is put back is one element again', async ({page}) => {
   // two lines are split between the pages, but the one line left on the page is moved back
   const pages = await firstPages(page, 'fill-rejoin', '<ul><li><p>line one<br>line two</p></li><li><p>next item</p></li></ul>', () => range(20, 140, 2));
