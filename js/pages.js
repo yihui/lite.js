@@ -925,8 +925,11 @@
   // take the children of the roots out of the DOM (to speed up rendering single pages), and return them
   function detachContent(roots) {
     return roots.map(el => {
-      // move <style>/<link> into <head>, so styles apply globally, however deep they are
-      $$('style, link[rel="stylesheet"]', el).forEach(el => d.head.append(el));
+      // move <style>/<link> into <head>, so styles apply globally, however deep they are; but keep
+      // a <style> with @scope, which applies to its parent element
+      $$('style, link[rel="stylesheet"]', el).forEach(el => {
+        if (!/@scope\b/.test(el.textContent)) d.head.append(el);
+      });
       const ch = kids(el).filter(el => ![box, hold, progress].includes(el) &&
         !['SCRIPT', 'NOSCRIPT', 'TEMPLATE'].includes(el.tagName));
       ch.forEach(el => el.remove());
