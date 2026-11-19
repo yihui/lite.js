@@ -143,6 +143,7 @@ test('header rows with td or a single colspan cell are not repeated on later pie
   const heads = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-body table.pagesjs-fragmented')]
     .map(t => t.tHead ? [...t.tHead.rows].map(tr => tr.textContent.trim()) : null));
   expect(heads.length).toBeGreaterThan(1);
+  expect(heads[0]).toEqual(['X', 'xy', 'Z', 'AB']);
   for (const h of heads.slice(1)) expect(h).toEqual(['AB']);
 });
 

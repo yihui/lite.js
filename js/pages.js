@@ -632,19 +632,25 @@
   }
   // A copy of a repeated table header. Its notes appear once, on the first page: the
   // first copy takes the markers of the original, so later copies have none. undo puts the
-  // markers back (if the copy is discarded). A header row with a td, or with one cell that
-  // has colspan, is left out of the copy (not column labels); its markers stay on the original.
+  // markers back (if the copy is discarded).
   function cloneHold(el, undo) {
-    const skip = r => [...r.cells].some(c => c.tagName === 'TD') || r.cells.length === 1 && r.cells[0].colSpan > 1;
     const c = el.cloneNode(true), ms = $$('.pagesjs-note', c);
     $$('.pagesjs-note', el).forEach((m, i) => {
-      if (skip(m.closest('tr'))) return;
       const p = m.parentNode, next = m.nextSibling;
       notes.set(ms[i], notes.get(m)); m.remove();
       undo.push(() => p.insertBefore(m, next));
     });
-    [...c.rows].filter(skip).forEach(r => r.remove());
     return c;
+  }
+  // Header rows that are not column labels (with a td, or one cell with colspan): the first
+  // piece has them (in its copy); they are taken out of the original, so later pieces don't.
+  function dropHeadExtras(thead, undo) {
+    [...thead.rows].filter(r => [...r.cells].some(c => c.tagName === 'TD') ||
+      r.cells.length === 1 && r.cells[0].colSpan > 1).forEach(r => {
+      const p = r.parentNode, next = r.nextSibling;
+      r.remove();
+      undo.push(() => p.insertBefore(r, next));
+    });
   }
   // split table rows
   function splitTable(el, container, prev, first) {
@@ -659,6 +665,7 @@
     cap && head.append(cap);
     // copy the table header (the footer, e.g. totals, goes only with the last piece)
     [el.tHead, tb2].forEach(t => t && head.append(t === tb2 ? t : cloneHold(t, undo)));
+    el.tHead && dropHeadExtras(el.tHead, undo);
     tb2.append(...rows);
     fitCount(n, j => rect(rows[j]).bottom, min, k => tb.prepend(...rows.slice(k)));
     // clear the clone if the current page can't fit even one row
