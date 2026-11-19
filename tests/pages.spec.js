@@ -132,6 +132,20 @@ test('table footer is only on the last piece', async ({page}) => {
   expect(pieces.map(p => p.foot)).toEqual([...pieces.slice(0, -1).map(() => false), true]);
 });
 
+// header rows with a td, or with one cell that has colspan, are not repeated on later pieces
+test('header rows with td or a single colspan cell are not repeated on later pieces', async ({page}) => {
+  const rows = Array.from({length: 200}, (_, i) => `<tr><td>a${i}</td><td>b${i}</td></tr>`).join('');
+  const body = `<main><table><thead><tr><td colspan="2">X</td></tr><tr><td>x</td><td>y</td></tr>` +
+    `<tr><th colspan="2">Z</th></tr><tr><th>A</th><th>B</th></tr></thead>` +
+    `<tbody>${rows}</tbody></table></main>`;
+  const r = await paginate(page, fixture('table-head-title', body));
+  expect(r.bad).toEqual([]);
+  const heads = await page.evaluate(() => [...document.querySelectorAll('.pagesjs-body table.pagesjs-fragmented')]
+    .map(t => t.tHead ? [...t.tHead.rows].map(tr => tr.textContent.trim()) : null));
+  expect(heads.length).toBeGreaterThan(1);
+  for (const h of heads.slice(1)) expect(h).toEqual(['AB']);
+});
+
 test('a broken paragraph that is put back is one element again', async ({page}) => {
   // two lines are split between the pages, but the one line left on the page is moved back
   const pages = await firstPages(page, 'fill-rejoin', '<ul><li><p>line one<br>line two</p></li><li><p>next item</p></li></ul>', () => range(20, 140, 2));
